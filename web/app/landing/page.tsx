@@ -592,22 +592,44 @@ export default function ConverzaLanding() {
                 </span>
               </h2>
               <p className="mt-4 max-w-[480px] text-[16px] leading-relaxed text-black/55">
-                $500 buys the pilot. Cancel before Day 14, full refund. Keep
-                every asset we render.
+                One 15-minute call to capture your brand passport. 24 hours
+                later, 60 ad variants in your approval inbox. Cancel before Day
+                14, full refund, keep every asset.
               </p>
-              <div className="mt-7 flex flex-wrap items-center gap-3">
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <a
+                  href="https://cal.com/converza/pilot"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group inline-flex items-center gap-2.5 rounded-full bg-[#0070F3] px-7 py-4 text-[15px] font-medium text-white shadow-[0_10px_28px_rgba(0,112,243,0.32)] transition-transform duration-200 hover:scale-[1.02] hover:bg-[#0060d4]"
+                >
+                  Book a 15-min call
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/15">
+                    <ArrowRight
+                      size={13}
+                      className="transition-transform group-hover:translate-x-0.5"
+                    />
+                  </span>
+                </a>
                 <a
                   href="mailto:pilot@converza.ai"
-                  className="group inline-flex items-center gap-2 rounded-full bg-[#0070F3] px-7 py-4 text-[15px] font-medium text-white shadow-[0_8px_28px_rgba(0,112,243,0.32)] transition-transform duration-200 hover:scale-[1.02] hover:bg-[#0060d4]"
+                  className="inline-flex items-center gap-2 rounded-full border border-black/[0.10] bg-white px-6 py-4 text-[14.5px] font-medium text-black transition-all duration-200 hover:scale-[1.01] hover:border-black"
                 >
-                  Book your $500 pilot
-                  <ArrowRight
-                    size={16}
-                    className="transition-transform group-hover:translate-x-0.5"
-                  />
+                  Or email pilot@converza.ai
                 </a>
-                <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-black/45">
-                  Onboarding · 15 minutes
+              </div>
+              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[10.5px] uppercase tracking-[0.22em] text-black/45">
+                <span className="inline-flex items-center gap-1.5">
+                  <Check size={11} strokeWidth={2.5} className="text-black" />{" "}
+                  No credit card to book
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Check size={11} strokeWidth={2.5} className="text-black" />{" "}
+                  SOC 2 in audit
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Check size={11} strokeWidth={2.5} className="text-black" />{" "}
+                  Reply within 4h
                 </span>
               </div>
             </div>
@@ -654,13 +676,22 @@ export default function ConverzaLanding() {
             System operational
           </div>
 
-          <div className="flex flex-wrap gap-5 font-mono text-[10px] uppercase tracking-[0.2em] text-black/45">
-            <a href="#features" className="hover:text-black">Platform</a>
-            <a href="#manifesto" className="hover:text-black">Manifesto</a>
-            <a href="#pilot" className="hover:text-black">Pilot</a>
-            <a href="mailto:hello@converza.ai" className="hover:text-black">
-              Contact
-            </a>
+          <div className="flex flex-wrap gap-1 font-mono text-[10px] uppercase tracking-[0.2em] text-black/45">
+            {[
+              { href: "#features", label: "Infrastructure" },
+              { href: "#who", label: "Who" },
+              { href: "#faq", label: "FAQ" },
+              { href: "#pilot", label: "Pilot" },
+              { href: "mailto:hello@converza.ai", label: "Contact" },
+            ].map((l) => (
+              <a
+                key={l.label}
+                href={l.href}
+                className="inline-flex min-h-[44px] items-center rounded-full px-3 transition-colors hover:bg-black/[0.04] hover:text-black"
+              >
+                {l.label}
+              </a>
+            ))}
           </div>
         </div>
         <div className="mx-auto mt-6 max-w-[1200px] font-mono text-[10px] uppercase tracking-[0.2em] text-black/30">
