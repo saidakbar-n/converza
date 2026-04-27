@@ -15,6 +15,7 @@ import {
   ArrowUp,
 } from "lucide-react";
 import clsx from "clsx";
+import { motion } from "motion/react";
 import DagVisualizer, {
   type DagPlan,
   type DagNode,
@@ -412,10 +413,20 @@ function EmptyState({
           `,
         }}
       />
-      <div className="flex flex-col items-center gap-5 text-center">
-        <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-text-muted">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="flex flex-col items-center gap-5 text-center"
+      >
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.05 }}
+          className="font-mono text-[10px] uppercase tracking-[0.22em] text-text-muted"
+        >
           {mode === "pipeline" ? "Pipeline · Manager Agent" : "Co-Pilot · Strategist"}
-        </div>
+        </motion.div>
         <h2 className="text-[clamp(32px,4vw,44px)] font-medium leading-[1.05] tracking-[-0.02em] text-text-primary">
           What are we shipping{" "}
           <span className="font-display text-accent">today?</span>
@@ -425,19 +436,33 @@ function EmptyState({
             ? "Describe a campaign. We compile the agent DAG and execute end-to-end while you watch."
             : "A senior marketing strategist on tap. Ask anything — strategy, copy, campaigns, competitive analysis."}
         </p>
-      </div>
+      </motion.div>
 
-      <div className="grid w-full max-w-2xl grid-cols-1 gap-2 sm:grid-cols-2">
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{
+          hidden: {},
+          show: { transition: { staggerChildren: 0.06, delayChildren: 0.2 } },
+        }}
+        className="grid w-full max-w-2xl grid-cols-1 gap-2 sm:grid-cols-2"
+      >
         {starters.map((prompt) => (
-          <button
+          <motion.button
             key={prompt}
+            variants={{
+              hidden: { opacity: 0, y: 14 },
+              show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 220, damping: 22 } },
+            }}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.985 }}
             onClick={() => onPrompt(prompt)}
-            className="group rounded-2xl border border-border bg-bg-elevated/70 px-4 py-3.5 text-left text-[13.5px] leading-relaxed text-text-secondary transition-all duration-200 hover:-translate-y-px hover:border-border-hover hover:bg-bg-elevated hover:text-text-primary hover:shadow-[0_4px_14px_rgba(0,0,0,0.04)]"
+            className="group rounded-2xl border border-border bg-bg-elevated/70 px-4 py-3.5 text-left text-[13.5px] leading-relaxed text-text-secondary transition-colors duration-200 hover:border-border-hover hover:bg-bg-elevated hover:text-text-primary hover:shadow-[0_4px_14px_rgba(0,0,0,0.04)]"
           >
             <span className="line-clamp-2">{prompt}</span>
-          </button>
+          </motion.button>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }
