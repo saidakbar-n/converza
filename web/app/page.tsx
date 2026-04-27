@@ -9,6 +9,10 @@ import {
   Loader2,
   Rocket,
   MessageSquare,
+  Paperclip,
+  Sparkles,
+  ChevronDown,
+  ArrowUp,
 } from "lucide-react";
 import clsx from "clsx";
 import DagVisualizer, {
@@ -938,35 +942,61 @@ export default function CommandCenter() {
               className="block min-h-[28px] w-full resize-none bg-transparent px-5 pt-4 pb-2 text-[15px] leading-relaxed text-text-primary placeholder-text-muted outline-none disabled:opacity-50"
             />
 
-            {/* Toolbar — pills LEFT, send RIGHT */}
+            {/* Toolbar — left tools, right tools */}
             <div className="flex items-center justify-between gap-2 px-3 pt-1 pb-2.5 md:px-3.5">
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex items-center gap-1.5">
+                {/* Attach */}
+                <button
+                  type="button"
+                  aria-label="Attach file"
+                  disabled={streaming}
+                  className="group flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition-all duration-150 hover:bg-bg-hover hover:text-text-primary active:scale-[0.94]"
+                >
+                  <Paperclip size={15} strokeWidth={1.8} />
+                </button>
+                {/* Mode pill */}
                 <ModePill mode={mode} onChange={setMode} disabled={streaming} />
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {/* Permission control */}
                 <PermissionPill
                   mode={permissionMode}
                   onChange={setPermissionMode}
                   disabled={streaming}
                 />
+                {/* Model selector — visual placeholder for now */}
+                <button
+                  type="button"
+                  aria-label="Choose model"
+                  disabled={streaming}
+                  className="group hidden items-center gap-1.5 rounded-full border border-border bg-bg-secondary/60 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-text-secondary transition-all duration-150 hover:border-border-hover hover:bg-bg-secondary hover:text-text-primary sm:inline-flex"
+                >
+                  <Sparkles size={11} strokeWidth={2} />
+                  Sonnet 4.7
+                  <ChevronDown size={10} strokeWidth={2.2} className="opacity-60" />
+                </button>
+                {/* Send — black circle, magnetic press */}
+                <button
+                  onClick={() => send()}
+                  disabled={!input.trim() || streaming}
+                  aria-label="Send message"
+                  className={clsx(
+                    "ml-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-200",
+                    input.trim() && !streaming
+                      ? "bg-text-primary text-bg-elevated shadow-[0_4px_12px_rgba(0,0,0,0.18)] hover:scale-[1.04] active:scale-[0.95]"
+                      : "bg-bg-tertiary text-text-muted",
+                  )}
+                >
+                  {streaming ? (
+                    <Loader2 size={14} strokeWidth={2.2} className="animate-spin" />
+                  ) : mode === "pipeline" ? (
+                    <Rocket size={14} strokeWidth={2.4} />
+                  ) : (
+                    <ArrowUp size={16} strokeWidth={2.4} />
+                  )}
+                </button>
               </div>
-              <button
-                onClick={() => send()}
-                disabled={!input.trim() || streaming}
-                aria-label="Send message"
-                className={clsx(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-150",
-                  input.trim() && !streaming
-                    ? "bg-text-primary text-bg-primary hover:scale-[1.03] active:scale-[0.97]"
-                    : "bg-bg-secondary text-text-muted",
-                )}
-              >
-                {streaming ? (
-                  <Loader2 size={14} strokeWidth={2.2} className="animate-spin" />
-                ) : mode === "pipeline" ? (
-                  <Rocket size={14} strokeWidth={2.4} />
-                ) : (
-                  <Send size={14} strokeWidth={2.4} />
-                )}
-              </button>
             </div>
           </div>
 
