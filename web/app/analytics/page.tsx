@@ -142,45 +142,32 @@ export default function AnalyticsPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto bg-bg-primary p-4 md:p-6">
-        {/* KPI Cards */}
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+      <div className="flex-1 overflow-y-auto bg-bg-primary p-6 md:p-10">
+        {/* KPI strip — divider-based, no card boxes */}
+        <div className="mb-12 grid grid-cols-1 gap-y-8 gap-x-px overflow-hidden rounded-2xl bg-border sm:grid-cols-3">
           {kpis.map((kpi) => (
-            <div
-              key={kpi.label}
-              className="rounded-xl border border-border bg-bg-secondary p-6"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] font-medium tracking-wide text-text-muted">
-                  {kpi.label}
-                </span>
-                <div
-                  className={clsx(
-                    "flex h-9 w-9 items-center justify-center rounded-lg",
-                    kpi.bg
-                  )}
-                >
-                  <kpi.icon size={18} className={kpi.color} />
-                </div>
-              </div>
-              <p className="mt-3 text-4xl font-bold tracking-tight text-text-primary">
+            <div key={kpi.label} className="bg-bg-primary px-7 py-5">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-text-muted">
+                {kpi.label}
+              </span>
+              <p className="mt-2 text-[34px] font-medium tracking-[-0.025em] tabular-nums text-text-primary">
                 {kpi.value}
               </p>
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-1.5 flex items-baseline gap-2">
                 <span
                   className={clsx(
-                    "flex items-center gap-0.5 text-[12px] font-semibold",
-                    kpi.trend === "up" ? "text-success" : "text-error"
+                    "flex items-center gap-0.5 font-mono text-[11px] font-medium tabular-nums",
+                    kpi.trend === "up" ? "text-success" : "text-error",
                   )}
                 >
                   {kpi.trend === "up" ? (
-                    <ArrowUpRight size={14} />
+                    <ArrowUpRight size={12} strokeWidth={2.2} />
                   ) : (
-                    <ArrowDownRight size={14} />
+                    <ArrowDownRight size={12} strokeWidth={2.2} />
                   )}
                   {kpi.change}
                 </span>
-                <span className="text-[11px] text-text-muted">{kpi.sublabel}</span>
+                <span className="text-[12px] text-text-muted">{kpi.sublabel}</span>
               </div>
             </div>
           ))}
