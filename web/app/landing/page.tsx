@@ -401,6 +401,86 @@ export default function ConverzaLanding() {
         </div>
       </section>
 
+      {/* ───────────── WHO THIS IS FOR (ICP) ───────────── */}
+      <section
+        id="who"
+        className="relative px-6 py-40 md:py-48"
+      >
+        <div className="mx-auto max-w-[1240px]">
+          <div className="reveal mb-5 font-mono text-[10.5px] uppercase tracking-[0.22em] text-black/45">
+            <span className="text-[#0070F3]">/</span> Built for
+          </div>
+          <h2 className="reveal max-w-[860px] text-[clamp(34px,4vw,56px)] font-semibold leading-[1.04] tracking-[-0.035em]">
+            Three operators we{" "}
+            <span
+              className="italic text-[#0070F3]"
+              style={{
+                fontFamily:
+                  "var(--font-serif), 'Instrument Serif', Georgia, serif",
+                fontWeight: 400,
+              }}
+            >
+              actually serve.
+            </span>
+          </h2>
+          <p className="reveal mt-5 max-w-[640px] text-[16px] leading-relaxed text-black/55">
+            We are not for everyone. If you recognise yourself in one of these,
+            the pilot will pay back inside 30 days.
+          </p>
+
+          <div className="reveal mt-16 grid grid-cols-1 gap-5 md:grid-cols-3">
+            {[
+              {
+                tag: "01 / The CIS exporter",
+                title: "Selling globally from Tashkent or Almaty.",
+                body: "You ship products to the US and Dubai but a Western agency retainer ($5k+) is impossible. You need native-English creative without paying native-English overhead.",
+                tick: ["English-native copy", "US + UAE markets", "Pay in USD or local"],
+              },
+              {
+                tag: "02 / The DTC operator",
+                title: "$3M to $15M GMV. Wants 10× output, not 10× headcount.",
+                body: "You already have a brand, a product, a Shopify, and an ad account. You are tired of editor backlogs and copywriter ghosting. You need volume and consistency.",
+                tick: ["Up to 250 ads / month", "Brand passport reuse", "Slack + email approvals"],
+              },
+              {
+                tag: "03 / The marketplace seller",
+                title: "Amazon, Noon, Wildberries. Constant creative refresh.",
+                body: "Your listings die in 2 weeks. You need fresh hooks, new B-roll, regional copy, and a calendar that ships without you babysitting it.",
+                tick: ["A/B hook testing", "Auto-scheduling", "Regional voice presets"],
+              },
+            ].map((p) => (
+              <article
+                key={p.tag}
+                className="rounded-3xl bg-[#FAFAFA] p-7 shadow-sm transition-shadow duration-300 hover:shadow-md md:p-8"
+              >
+                <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-black/55">
+                  {p.tag}
+                </div>
+                <h3 className="mt-3 text-[22px] font-semibold leading-[1.2] tracking-[-0.02em]">
+                  {p.title}
+                </h3>
+                <p className="mt-3 text-[14.5px] leading-relaxed text-black/55">
+                  {p.body}
+                </p>
+                <ul className="mt-6 space-y-2">
+                  {p.tick.map((t) => (
+                    <li
+                      key={t}
+                      className="flex items-center gap-2 text-[13px] text-black/75"
+                    >
+                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-black text-white">
+                        <Check size={10} strokeWidth={2.5} />
+                      </span>
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ───────────── MANIFESTO ───────────── */}
       <section
         id="manifesto"
