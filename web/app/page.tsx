@@ -239,17 +239,17 @@ function RolePill({
   disabled: boolean;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-lg bg-bg-tertiary p-1 ring-1 ring-border">
+    <div className="flex items-center gap-0.5 rounded-full bg-bg-secondary p-0.5 ring-1 ring-border">
       {(["Owner", "Marketer"] as UserRole[]).map((r) => (
         <button
           key={r}
           disabled={disabled}
           onClick={() => onChange(r)}
           className={clsx(
-            "rounded-md px-3 py-1 text-[12px] font-semibold transition-colors",
+            "rounded-full px-3 py-1 text-[12px] font-medium transition-all duration-150",
             role === r
-              ? "bg-accent text-text-on-accent"
-              : "text-text-muted hover:text-text-primary"
+              ? "bg-bg-primary text-text-primary shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+              : "text-text-muted hover:text-text-primary",
           )}
         >
           {r}
@@ -273,31 +273,31 @@ function ModePill({
   disabled: boolean;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-lg bg-bg-tertiary p-1 ring-1 ring-border">
+    <div className="flex items-center gap-0.5 rounded-full bg-bg-secondary p-0.5 ring-1 ring-border">
       <button
         disabled={disabled}
         onClick={() => onChange("chat")}
         className={clsx(
-          "flex items-center gap-1.5 rounded-md px-3 py-1 text-[12px] font-semibold transition-colors",
+          "flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium transition-all duration-150",
           mode === "chat"
-            ? "bg-accent text-text-on-accent"
-            : "text-text-muted hover:text-text-primary"
+            ? "bg-bg-primary text-text-primary shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+            : "text-text-muted hover:text-text-primary",
         )}
       >
-        <MessageSquare size={11} strokeWidth={2.5} />
+        <MessageSquare size={11} strokeWidth={2.2} />
         Chat
       </button>
       <button
         disabled={disabled}
         onClick={() => onChange("pipeline")}
         className={clsx(
-          "flex items-center gap-1.5 rounded-md px-3 py-1 text-[12px] font-semibold transition-colors",
+          "flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium transition-all duration-150",
           mode === "pipeline"
-            ? "bg-accent text-text-on-accent"
-            : "text-text-muted hover:text-text-primary"
+            ? "bg-bg-primary text-text-primary shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+            : "text-text-muted hover:text-text-primary",
         )}
       >
-        <Rocket size={11} strokeWidth={2.5} />
+        <Rocket size={11} strokeWidth={2.2} />
         Pipeline
       </button>
     </div>
@@ -389,35 +389,30 @@ function EmptyState({
   const starters = mode === "pipeline" ? pipelineStarters : chatStarters;
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 px-4">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-bg-tertiary ring-1 ring-border">
-          {mode === "pipeline" ? (
-            <Rocket size={22} strokeWidth={1.5} className="text-accent" />
-          ) : (
-            <Terminal size={22} strokeWidth={1.5} className="text-accent" />
-          )}
+    <div className="flex h-full flex-col items-center justify-center gap-12 px-4">
+      <div className="flex flex-col items-center gap-5 text-center">
+        <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-text-muted">
+          {mode === "pipeline" ? "Pipeline · Manager Agent" : "Co-Pilot · Strategist"}
         </div>
-        <h2 className="text-[17px] font-semibold text-text-primary">
-          {mode === "pipeline"
-            ? "Converza Pipeline"
-            : "Converza Co-Pilot"}
+        <h2 className="text-[clamp(32px,4vw,44px)] font-medium leading-[1.05] tracking-[-0.02em] text-text-primary">
+          What are we shipping{" "}
+          <span className="font-display text-accent">today?</span>
         </h2>
-        <p className="max-w-sm text-[13px] leading-relaxed text-text-muted">
+        <p className="max-w-md text-[15px] leading-relaxed text-text-secondary">
           {mode === "pipeline"
-            ? "Describe a campaign. The Manager Agent will assess your strategy, compile a DAG, and execute the full agent swarm."
-            : "Your senior marketing strategist and AI systems coordinator. Ask anything — strategy, copy, campaigns, or competitive analysis."}
+            ? "Describe a campaign. We compile the agent DAG and execute end-to-end while you watch."
+            : "A senior marketing strategist on tap. Ask anything — strategy, copy, campaigns, competitive analysis."}
         </p>
       </div>
 
-      <div className="grid w-full max-w-xl grid-cols-1 gap-2 sm:grid-cols-2 px-2 sm:px-0">
+      <div className="grid w-full max-w-2xl grid-cols-1 gap-2 sm:grid-cols-2">
         {starters.map((prompt) => (
           <button
             key={prompt}
             onClick={() => onPrompt(prompt)}
-            className="rounded-xl bg-bg-secondary px-4 py-3 text-left text-[13px] text-text-secondary ring-1 ring-border transition-colors hover:bg-bg-tertiary hover:text-text-primary hover:ring-border-hover"
+            className="group rounded-2xl border border-border bg-bg-secondary/60 px-4 py-3.5 text-left text-[13.5px] leading-relaxed text-text-secondary transition-all duration-200 hover:-translate-y-px hover:border-border-hover hover:bg-bg-primary hover:text-text-primary hover:shadow-[0_4px_14px_rgba(0,0,0,0.04)]"
           >
-            {prompt}
+            <span className="line-clamp-2">{prompt}</span>
           </button>
         ))}
       </div>
@@ -849,27 +844,35 @@ export default function CommandCenter() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 pl-14 md:pl-6 md:px-6">
-        <div className="flex items-center gap-2.5">
-          <Terminal size={18} strokeWidth={1.8} className="text-accent" />
-          <h1 className="hidden text-[15px] font-semibold text-text-primary sm:block">
-            Command Center
+      {/* Header — Claude-style: light, serif italic page title, mode pills right */}
+      <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-bg-primary px-4 pl-14 md:pl-8 md:px-8">
+        <div className="flex items-baseline gap-3">
+          <h1 className="hidden text-[18px] font-medium tracking-[-0.01em] text-text-primary sm:block">
+            Co-Pilot
           </h1>
+          <span className="hidden font-display text-[18px] text-text-muted sm:block">
+            workspace
+          </span>
         </div>
-        <div className="flex items-center gap-2 md:gap-3">
+        <div className="flex items-center gap-2 md:gap-2.5">
           <ModePill mode={mode} onChange={setMode} disabled={streaming} />
           <PermissionPill mode={permissionMode} onChange={setPermissionMode} disabled={streaming} />
           <RolePill role={role} onChange={setRole} disabled={streaming} />
           <span
             className={clsx(
-              "hidden rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline-block",
+              "hidden items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] sm:inline-flex",
               mode === "pipeline"
-                ? "bg-blue-500/10 text-blue-400"
-                : "bg-accent-dim text-accent"
+                ? "bg-accent/10 text-accent"
+                : "bg-bg-secondary text-text-secondary",
             )}
           >
-            {mode === "pipeline" ? "Pipeline Mode" : "Co-Pilot Active"}
+            <span
+              className={clsx(
+                "h-1.5 w-1.5 rounded-full",
+                mode === "pipeline" ? "bg-accent" : "bg-success",
+              )}
+            />
+            {mode === "pipeline" ? "Pipeline" : "Active"}
           </span>
         </div>
       </header>
