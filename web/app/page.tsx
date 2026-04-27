@@ -862,7 +862,7 @@ export default function CommandCenter() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header — minimal Claude chrome */}
+      {/* Header — quiet, just the page title */}
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-bg-primary px-4 pl-14 md:pl-8 md:px-8">
         <div className="flex items-baseline gap-3">
           <h1 className="hidden text-[18px] font-medium tracking-[-0.01em] text-text-primary sm:block">
@@ -870,32 +870,6 @@ export default function CommandCenter() {
           </h1>
           <span className="hidden font-display text-[18px] text-text-muted sm:block">
             workspace
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className={clsx(
-              "hidden items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] transition-colors sm:inline-flex",
-              mode === "pipeline"
-                ? "border border-accent/20 bg-accent-dim text-accent"
-                : "border border-success/15 bg-success-dim text-success",
-            )}
-          >
-            <span className="relative flex h-1.5 w-1.5">
-              <span
-                className={clsx(
-                  "absolute inline-flex h-full w-full animate-ping rounded-full opacity-60",
-                  mode === "pipeline" ? "bg-accent" : "bg-success",
-                )}
-              />
-              <span
-                className={clsx(
-                  "relative h-1.5 w-1.5 rounded-full",
-                  mode === "pipeline" ? "bg-accent" : "bg-success",
-                )}
-              />
-            </span>
-            {mode === "pipeline" ? "Pipeline · running" : "Active"}
           </span>
         </div>
       </header>
@@ -973,7 +947,6 @@ export default function CommandCenter() {
                   onChange={setPermissionMode}
                   disabled={streaming}
                 />
-                <RolePill role={role} onChange={setRole} disabled={streaming} />
               </div>
               <button
                 onClick={() => send()}

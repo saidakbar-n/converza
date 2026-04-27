@@ -221,15 +221,23 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         </div>
       </nav>
 
-      {/* ── Status — soft success-tinted card ── */}
-      <div className="mx-3 mb-3 flex items-center gap-2.5 rounded-lg border border-success/15 bg-success-dim px-3 py-2.5">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success/60" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
-        </span>
-        <span className="flex-1 font-mono text-[10px] uppercase tracking-[0.18em] text-success">
-          All systems operational
-        </span>
+      {/* ── User chip — Claude-style profile preview at the bottom of the rail ── */}
+      <div className="mx-3 mb-3">
+        <Link
+          href="/settings/profile"
+          onClick={onClose}
+          className="group flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-bg-hover"
+        >
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#2D6FE5] to-[#0070F3] text-[11px] font-medium text-white">
+            NE
+          </span>
+          <span className="flex-1 truncate text-[13px] font-medium text-text-primary">
+            Nodir
+          </span>
+          <span className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-text-muted">
+            Free
+          </span>
+        </Link>
       </div>
     </>
   );
