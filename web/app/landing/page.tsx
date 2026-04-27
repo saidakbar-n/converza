@@ -511,6 +511,64 @@ export default function ConverzaLanding() {
         </div>
       </section>
 
+      {/* ───────────── FAQ ───────────── */}
+      <section id="faq" className="relative px-6 py-40 md:py-48">
+        <div className="mx-auto max-w-[1100px]">
+          <div className="reveal grid grid-cols-1 gap-12 md:grid-cols-[1fr_1.6fr] md:gap-20">
+            <div className="md:sticky md:top-32 md:self-start">
+              <div className="mb-5 font-mono text-[10.5px] uppercase tracking-[0.22em] text-black/45">
+                <span className="text-[#0070F3]">/</span> The questions every
+                founder asks
+              </div>
+              <h2 className="text-[clamp(34px,3.6vw,52px)] font-semibold leading-[1.04] tracking-[-0.035em]">
+                Answered{" "}
+                <span
+                  className="italic text-[#0070F3]"
+                  style={{
+                    fontFamily:
+                      "var(--font-serif), 'Instrument Serif', Georgia, serif",
+                    fontWeight: 400,
+                  }}
+                >
+                  before you ask.
+                </span>
+              </h2>
+              <p className="mt-5 max-w-[400px] text-[15px] leading-relaxed text-black/55">
+                Six things B2B buyers always check before a pilot. Plain
+                answers, no asterisks.
+              </p>
+            </div>
+
+            <div className="reveal divide-y divide-black/[0.08]">
+              <FaqItem
+                q="Who owns the assets we generate?"
+                a="You do. Forever. The brand passport, every ad variant, every cut, every caption. Even if you cancel on Day 13, you keep everything we shipped to your approval inbox."
+              />
+              <FaqItem
+                q="What if the output is bad?"
+                a="Cancel before Day 14, full refund. Keep every asset already produced. We do not lock you into anything you cannot walk away from in two weeks."
+              />
+              <FaqItem
+                q="Do you replace agencies fully or augment them?"
+                a="Most pilots replace. A few teams keep an agency for brand campaigns and use Converza for high-volume mid-funnel creative. Both work. We tell you which one fits in onboarding."
+              />
+              <FaqItem
+                q="Where is our data stored? Do you train on it?"
+                a="EU and US regions, your choice. SOC 2 Type II in audit. Customer data is never used to train base models. Your brand passport stays inside your tenant."
+              />
+              <FaqItem
+                q="What if we don't have a brand book yet?"
+                a="We build one in the 15-minute onboarding call. Voice, promise, audience, market, pricing — captured once, reused forever. Most founders leave the call with a sharper brand than they walked in with."
+              />
+              <FaqItem
+                q="Can you use our own product footage and B-roll?"
+                a="Yes. Drop a folder of clips, photos, and reviews. We generate variants on top of your real material. Pure-AI creative is an option, not a requirement."
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ───────────── PILOT CTA ───────────── */}
       <section id="pilot" className="relative px-6 py-44 md:py-56">
         <div className="mx-auto max-w-[1180px] overflow-hidden rounded-[32px] bg-[#FAFAFA] p-12 shadow-sm md:p-20">
@@ -1131,6 +1189,38 @@ function RenderFeed() {
 }
 
 // ───────────── Feature 3: Compare Table ─────────────
+
+// ───────────── FAQ accordion item ─────────────
+
+function FaqItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="group flex w-full items-start justify-between gap-6 py-6 text-left transition-colors hover:text-[#0070F3]"
+      >
+        <span className="text-[18px] font-semibold leading-snug tracking-[-0.015em]">
+          {q}
+        </span>
+        <span
+          className={`mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-black/[0.10] text-black/65 transition-all duration-300 group-hover:border-[#0070F3] group-hover:text-[#0070F3] ${open ? "rotate-45 bg-black text-white" : ""}`}
+        >
+          <span className="text-[16px] leading-none">+</span>
+        </span>
+      </button>
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+      >
+        <div className="overflow-hidden">
+          <p className="pb-7 pr-12 text-[15.5px] leading-relaxed text-black/65">
+            {a}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function CompareTable() {
   const rows = [
