@@ -164,8 +164,9 @@ export default function ConverzaLanding() {
           </a>
           <div className="hidden items-center gap-1 md:flex">
             <NavLink href="#features">Infrastructure</NavLink>
-            <NavLink href="#manifesto">Protocol</NavLink>
-            <NavLink href="#pilot">Capabilities</NavLink>
+            <NavLink href="#who">Who it's for</NavLink>
+            <NavLink href="#faq">FAQ</NavLink>
+            <NavLink href="#pilot">Pilot</NavLink>
           </div>
           <a
             href="#pilot"
