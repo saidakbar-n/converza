@@ -258,6 +258,70 @@ export default function ConverzaLanding() {
         </div>
       </section>
 
+      {/* ───────────── TRUST BAND ───────────── */}
+      <section
+        aria-label="Trusted by ecommerce operators"
+        className="relative border-y border-black/[0.05] bg-[#FAFAFA] px-6 py-14"
+      >
+        <div className="mx-auto max-w-[1240px]">
+          <div className="reveal grid grid-cols-1 items-center gap-10 md:grid-cols-[auto_1fr] md:gap-14">
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-black/55">
+              Pilots running with operators in
+            </p>
+            <div className="flex flex-wrap items-center gap-x-10 gap-y-4 text-black/55">
+              {[
+                "Tashkent",
+                "Almaty",
+                "Dubai",
+                "Istanbul",
+                "Brooklyn",
+                "Riyadh",
+              ].map((city) => (
+                <span
+                  key={city}
+                  className="font-semibold tracking-[-0.01em] text-[15px]"
+                  style={{
+                    fontFamily:
+                      "var(--font-serif), 'Instrument Serif', Georgia, serif",
+                    fontStyle: "italic",
+                    fontWeight: 400,
+                    fontSize: "20px",
+                  }}
+                >
+                  {city}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="reveal mt-14 grid grid-cols-1 gap-px overflow-hidden rounded-2xl bg-black/[0.06] md:grid-cols-3">
+            {[
+              {
+                k: "$3,800",
+                v: "Average monthly cost vs. a Western retainer",
+              },
+              {
+                k: "60",
+                v: "Native-English ad variants per pilot run",
+              },
+              {
+                k: "24h",
+                v: "From brief to a full month of approved assets",
+              },
+            ].map((s) => (
+              <div key={s.k} className="bg-white px-8 py-7">
+                <div className="text-[40px] font-semibold leading-none tracking-[-0.035em]">
+                  {s.k}
+                </div>
+                <div className="mt-3 max-w-[260px] text-[14px] leading-snug text-black/55">
+                  {s.v}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ───────────── FEATURES ───────────── */}
       <section
         id="features"
