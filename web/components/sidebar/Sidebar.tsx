@@ -1,28 +1,20 @@
 "use client";
 
-import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import clsx from "clsx";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import {
-  MessageSquareText,
-  Workflow,
-  FolderKanban,
-  Package,
-  BarChart3,
-  CalendarDays,
-  Palette,
-  KeyRound,
+  LayoutDashboard,
+  Sparkles,
+  Compass,
+  UsersRound,
+  Crosshair,
+  Plug,
   CreditCard,
-  UserRound,
-  Brain,
-  Cpu,
   ChevronDown,
-  Plus,
   X,
-  Search,
-  PanelLeft,
+  MessageSquareText,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────
@@ -37,56 +29,23 @@ interface NavItem {
   hint?: string;
 }
 
-interface NavSection {
-  id: string;
-  title: string;
-  items: NavItem[];
-}
-
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// IA — three sections + collapsible Settings
+// IA — single nav focused on data input for the AI
 // ─────────────────────────────────────────────────────────────────────
 
-const sections: NavSection[] = [
-  {
-    id: "workspace",
-    title: "Workspace",
-    items: [
-      { id: "chat", label: "Co-Pilot", href: "/", icon: MessageSquareText, hint: "K" },
-      { id: "threads", label: "Agent threads", href: "/threads", icon: Workflow },
-      { id: "projects", label: "Projects", href: "/projects", icon: FolderKanban },
-      { id: "products", label: "Products", href: "/products", icon: Package },
-    ],
-  },
-  {
-    id: "insights",
-    title: "Insights",
-    items: [
-      { id: "analytics", label: "Analytics", href: "/analytics", icon: BarChart3 },
-      { id: "calendar", label: "Content calendar", href: "/calendar", icon: CalendarDays },
-    ],
-  },
-];
-
-const settingsItems: NavItem[] = [
-  { id: "brand", label: "Brand passport", href: "/settings/brand", icon: Palette },
-  { id: "tokens", label: "API tokens", href: "/settings/tokens", icon: KeyRound },
+const navItems: NavItem[] = [
+  { id: "dashboard", label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { id: "brand", label: "Brand Profile", href: "/settings/brand", icon: Sparkles },
+  { id: "strategy", label: "Strategy", href: "/strategy", icon: Compass },
+  { id: "audience", label: "Target Audience", href: "/audience", icon: UsersRound },
+  { id: "competitors", label: "Competitors", href: "/competitors", icon: Crosshair },
+  { id: "integrations", label: "Integrations", href: "/integrations", icon: Plug },
   { id: "billing", label: "Billing", href: "/settings/billing", icon: CreditCard },
-  { id: "profile", label: "Profile", href: "/settings/profile", icon: UserRound },
-  { id: "memory", label: "Agent memory", href: "/settings/memory", icon: Brain },
-  { id: "models", label: "Models", href: "/settings/models", icon: Cpu },
-];
-
-// Recent threads — placeholder data, would come from store in production
-const recentThreads = [
-  { id: "t-1", label: "Summer Drop hook test", time: "2h" },
-  { id: "t-2", label: "Q3 Dyson launch brief", time: "yesterday" },
-  { id: "t-3", label: "UAE market positioning", time: "3d" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────
@@ -95,7 +54,6 @@ const recentThreads = [
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -146,16 +104,6 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     );
   }
 
-  function SectionHeader({ title }: { title: string }) {
-    return (
-      <div className="px-3 pb-1.5 pt-1">
-        <span className="font-display text-[13px] text-text-muted">
-          {title}
-        </span>
-      </div>
-    );
-  }
-
   const sidebarContent = (
     <>
       {/* ── Workspace switcher (Claude / Linear style) ── */}
@@ -195,96 +143,25 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         </button>
       </div>
 
-      {/* ── Search + new chat ── */}
-      <div className="space-y-1.5 px-3 pt-3 pb-2">
-        <button className="group flex w-full items-center gap-2.5 rounded-lg border border-border bg-bg-elevated px-3 py-2 text-[13px] text-text-muted transition-all duration-150 hover:border-border-hover hover:text-text-primary">
-          <Search size={13} strokeWidth={1.8} />
-          <span className="flex-1 truncate text-left">Search threads…</span>
-          <kbd className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-text-muted/80">
-            /
-          </kbd>
-        </button>
-        <Link
-          href="/"
-          onClick={onClose}
-          className="group flex items-center gap-2.5 rounded-lg border border-border bg-bg-elevated px-3 py-2 text-[13.5px] font-medium text-text-primary transition-all duration-150 hover:border-border-hover hover:bg-bg-elevated hover:shadow-[0_2px_6px_rgba(0,0,0,0.04)]"
-        >
-          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-text-primary text-bg-elevated transition-transform group-hover:scale-105">
-            <Plus size={13} strokeWidth={2.4} />
-          </span>
-          <span>New chat</span>
-          <kbd className="ml-auto font-mono text-[9.5px] uppercase tracking-[0.14em] text-text-muted">
-            N
-          </kbd>
-        </Link>
-      </div>
-
-      {/* ── Sectioned nav ── */}
-      <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4 pt-2">
-        {sections.map((section, sIdx) => (
-          <div key={section.id} className="space-y-0.5">
-            <SectionHeader title={section.title} />
-            {section.items.map((item, idx) => (
-              <NavLink key={item.id} item={item} index={sIdx * 4 + idx} />
-            ))}
-          </div>
+      {/* ── Single flat nav, focused on data input for the AI ── */}
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-4 pt-4">
+        {navItems.map((item, i) => (
+          <NavLink key={item.id} item={item} index={i} />
         ))}
 
-        {/* Recent threads */}
-        <div className="space-y-0.5">
-          <SectionHeader title="Recent" />
-          {recentThreads.map((t, i) => (
-            <motion.button
-              key={t.id}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.28, delay: 0.04 * (i + 8), ease: [0.16, 1, 0.3, 1] }}
-              className="group flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-[13px] text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
-            >
-              <span className="h-1 w-1 shrink-0 rounded-full bg-text-muted/40 transition-colors group-hover:bg-accent" />
-              <span className="flex-1 truncate">{t.label}</span>
-              <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-text-muted/70">
-                {t.time}
-              </span>
-            </motion.button>
-          ))}
-        </div>
-
-        {/* Settings — collapsible */}
-        <div className="space-y-0.5">
-          <button
-            onClick={() => setSettingsOpen((v) => !v)}
-            className="group flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left transition-colors hover:bg-bg-hover"
+        {/* Quiet shortcut to the chat assistant — kept reachable but out of the primary IA */}
+        <div className="mt-6 border-t border-border/60 pt-3">
+          <Link
+            href="/copilot"
+            onClick={onClose}
+            className="group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] text-text-muted transition-colors hover:bg-bg-hover hover:text-text-secondary"
           >
-            <span className="font-display flex-1 text-[13px] text-text-muted group-hover:text-text-secondary">
-              Settings
-            </span>
-            <motion.span
-              animate={{ rotate: settingsOpen ? 0 : -90 }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            >
-              <ChevronDown
-                size={13}
-                strokeWidth={2}
-                className="text-text-muted"
-              />
-            </motion.span>
-          </button>
-          <AnimatePresence initial={false}>
-            {settingsOpen && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                className="overflow-hidden"
-              >
-                {settingsItems.map((item, i) => (
-                  <NavLink key={item.id} item={item} index={i} />
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+            <MessageSquareText size={14} strokeWidth={1.8} />
+            <span className="flex-1">Co-Pilot chat</span>
+            <kbd className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-text-muted/70">
+              ↗
+            </kbd>
+          </Link>
         </div>
       </nav>
 
