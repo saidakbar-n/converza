@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install bot dependencies
+        run: pip install -r converza_bot/requirements.txt
+
+      - name: Install web dependencies
+        run: pip install -r converza_web/Converza_ai/requirements.txt
+
+      - name: Import bot main
+        working-directory: converza_bot
+        env:
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_KEY: test_key
+          GROQ_API_KEY: test
+          TELEGRAM_BOT_TOKEN: test
+        run: python -c "import main; print('bot ok')"
+
+      - name: Import web main
+        working-directory: converza_web/Converza_ai
+        env:
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_KEY: test_key
+          TELEGRAM_BOT_TOKEN: test
+          JWT_SECRET: test_secret
+        run: python -c "import main; print('web ok')"
+
+      - name: Migrations exist
+        run: |
+          test -f supabase/migrations/001_initial_schema.sql
+          test -f supabase/migrations/003_align_live_schema.sql
+          test -f supabase/migrations/004_access_requests.sql
+          echo "migrations ok"
+
+      - name: Deploy artifacts exist
+        run: |
+          test -f docker-compose.prod.yml
+          test -f deploy/DEPLOY.md
+          test -f converza_web/Converza_ai/Dockerfile
+          echo "deploy ok"
