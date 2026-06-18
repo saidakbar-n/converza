@@ -34,5 +34,18 @@ for key in ENV JWT_SECRET SUPABASE_URL TELEGRAM_BOT_TOKEN KIE_API_KEY; do
 done
 
 echo ""
-echo "==> Nginx error log (last 10 lines)"
-tail -10 /var/log/nginx/error.log 2>/dev/null || true
+echo "==> Web → bot connectivity (from inside web container)"
+docker compose -f "$COMPOSE_FILE" exec -T web python -c "
+import urllib.request
+try:
+    r = urllib.request.urlopen('http://host.docker.internal:8000/health', timeout=3)
+    print('  host.docker.internal:8000 →', r.read().decode())
+except Exception as e:
+    print('  host.docker.internal:8000 → FAILED:', e)
+" 2>/dev/null || echo "  (web container not running)"
+
+echo ""
+echo "==> Public webhook proxy (expects 200/403, not 502)"
+curl -sS -m 5 -X POST "https://getconverza.com/webhook/telegram" \
+  -H "Content-Type: application/json" \
+  -d '{"update_id":1}' 2>&1 | head -1 || true

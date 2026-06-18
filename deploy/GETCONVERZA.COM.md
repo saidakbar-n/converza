@@ -40,6 +40,10 @@ ALLOWED_ORIGINS=https://getconverza.com
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build
 curl -s http://127.0.0.1:8001/health
+
+# Web container must reach bot on host :8000 (not 127.0.0.1 from inside Docker):
+docker compose -f docker-compose.prod.yml exec web \
+  python -c "import urllib.request; print(urllib.request.urlopen('http://host.docker.internal:8000/health', timeout=3).read())"
 ```
 
 ## 3. Nginx + SSL
