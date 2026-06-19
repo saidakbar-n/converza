@@ -5,15 +5,12 @@ services:
     network_mode: host
     restart: unless-stopped
 
-    web:
+  web:
+    build: ./converza_web/Converza_ai
+    env_file: /etc/converza/.env
+    network_mode: host
     environment:
-      BOT_INTERNAL_URL: http://host.docker.internal:8000
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    ports:
-      - "127.0.0.1:8001:8001"
-    depends_on:
-      - bot
+      BOT_INTERNAL_URL: http://127.0.0.1:8000
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)"]
