@@ -8,6 +8,7 @@ Apply before production go-live.
 2. Paste and run the full contents of (in order):
    - [`supabase/migrations/003_align_live_schema.sql`](../supabase/migrations/003_align_live_schema.sql)
    - [`supabase/migrations/004_access_requests.sql`](../supabase/migrations/004_access_requests.sql)
+   - [`supabase/migrations/005_brand_passport_columns.sql`](../supabase/migrations/005_brand_passport_columns.sql)
 3. Verify in **Table Editor**:
    - `organizations` exists with `id` as `text`
    - `brand_passports.org_id` is `text`

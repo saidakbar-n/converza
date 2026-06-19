@@ -44,6 +44,7 @@ jobs:
           test -f supabase/migrations/001_initial_schema.sql
           test -f supabase/migrations/003_align_live_schema.sql
           test -f supabase/migrations/004_access_requests.sql
+          test -f supabase/migrations/005_brand_passport_columns.sql
           echo "migrations ok"
 
       - name: Deploy artifacts exist
