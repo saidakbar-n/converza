@@ -5,6 +5,13 @@ set -euo pipefail
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_FILE="${CONVERZA_ENV:-/etc/converza/.env}"
 
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
+
 echo "==> Docker containers (need hermes + bot + web all Up)"
 docker compose -f "$COMPOSE_FILE" ps -a 2>/dev/null || docker-compose -f "$COMPOSE_FILE" ps -a
 if ! docker compose -f "$COMPOSE_FILE" ps --status running 2>/dev/null | grep -q converza-web; then
@@ -57,6 +64,13 @@ if [[ -x "$(dirname "$0")/verify-webhooks.sh" ]]; then
   echo ""
   echo "==> Telegram getWebhookInfo"
   CONVERZA_ENV="$ENV_FILE" "$(dirname "$0")/verify-webhooks.sh" || true
+  SALES_URL=$(curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo" 2>/dev/null \
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('result',{}).get('url',''))" 2>/dev/null || true)
+  if [[ -z "${SALES_URL:-}" ]]; then
+    echo ""
+    echo "  FAIL: @ConverzaSales_bot webhook URL is EMPTY — Hermes may have deleted it."
+    echo "  Fix: docker compose -f $COMPOSE_FILE up -d --build hermes && ./scripts/set_telegram_webhooks.sh"
+  fi
 fi
 
 echo ""

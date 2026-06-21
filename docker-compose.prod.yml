@@ -6,6 +6,13 @@ services:
     env_file: /etc/converza/.env
     network_mode: host
     restart: unless-stopped
+    # Blank Telegram vars so Hermes cannot steal @ConverzaSales_bot from Converza webhooks.
+    # entrypoint also unsets them before `hermes gateway` (env_file injects into process env).
+    environment:
+      TELEGRAM_BOT_TOKEN: ""
+      TELEGRAM_APP_BOT_TOKEN: ""
+      TELEGRAM_ALLOWED_USERS: ""
+      TELEGRAM_WEBHOOK_SECRET: ""
     # Do NOT mount over /opt/hermes — that hides the Hermes binary from the image.
     # Config + skills are baked/rebuilt in entrypoint on first start.
     healthcheck:

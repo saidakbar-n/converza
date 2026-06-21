@@ -64,5 +64,15 @@ platforms:
 EOF
 fi
 
+# docker compose env_file still injects TELEGRAM_BOT_TOKEN — Hermes polls and deletes webhooks.
+for tgvar in TELEGRAM_BOT_TOKEN TELEGRAM_APP_BOT_TOKEN TELEGRAM_ALLOWED_USERS \
+  TELEGRAM_WEBHOOK_SECRET TELEGRAM_BOT_USERNAME TELEGRAM_APP_BOT_USERNAME \
+  TELEGRAM_HITL_BOT_TOKEN; do
+  unset "$tgvar" || true
+done
+
 echo "Starting Hermes gateway (API :${API_SERVER_PORT}, MCP converza; Telegram disabled)..."
-exec hermes gateway
+exec env -u TELEGRAM_BOT_TOKEN -u TELEGRAM_APP_BOT_TOKEN -u TELEGRAM_ALLOWED_USERS \
+  -u TELEGRAM_WEBHOOK_SECRET -u TELEGRAM_BOT_USERNAME -u TELEGRAM_APP_BOT_USERNAME \
+  -u TELEGRAM_HITL_BOT_TOKEN \
+  hermes gateway
