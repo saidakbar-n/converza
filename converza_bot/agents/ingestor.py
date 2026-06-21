@@ -18,7 +18,7 @@ from db.supabase_client import sb
 from agents.closer import generate_reply
 from services.closer_readiness import assess_closer_readiness, readiness_label
 from services.org_resolver import resolve_org_id
-from services.telegram_send import send_message
+from services.telegram_send import send_app_message, send_message
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,28 @@ NON_TEXT_REPLY = (
     "Hozircha faqat matnli xabarlarga javob bera olamiz. "
     "Iltimos, savolingizni yozma shaklda yuboring."
 )
+
+# Avoid spamming owner on every customer message when setup is incomplete.
+_owner_alert_at: dict[str, float] = {}
+_OWNER_ALERT_COOLDOWN_SEC = 3600
+
+
+async def _alert_owner_setup(org_id: str, label: str) -> None:
+    import time
+
+    key = f"{org_id}:{label}"
+    now = time.time()
+    if now - _owner_alert_at.get(key, 0) < _OWNER_ALERT_COOLDOWN_SEC:
+        return
+    _owner_alert_at[key] = now
+    try:
+        await send_app_message(
+            int(org_id),
+            f"⚠️ Mijoz xabariga javob berilmadi.\n\nSabab: {label}\n\n"
+            "Tuzatish: @ConverzaApp_bot da /status ni tekshiring.",
+        )
+    except (TypeError, ValueError):
+        pass
 
 
 def _extract_business_connection_id(update: TelegramUpdate) -> str | None:
@@ -64,16 +86,25 @@ async def ingest_message(update: TelegramUpdate) -> None:
         org_id = resolve_org_id(update)
     except ValueError as exc:
         logger.error("ingest_message org resolution failed: %s", exc)
+        raw = update.model_dump(by_alias=True)
+        conn = (raw.get("business_message") or {}).get("business_connection_id")
+        logger.error(
+            "business_connection_id=%s not linked to any org — "
+            "owner should reconnect @ConverzaSales_bot in Telegram Business → Chatbots",
+            conn,
+        )
         return
 
     ready, reason = assess_closer_readiness(org_id)
     if not ready:
+        label = readiness_label(reason)
         logger.warning(
             "DM Closer skipped for org_id=%s update_id=%s: %s",
             org_id,
             update.update_id,
-            readiness_label(reason),
+            label,
         )
+        await _alert_owner_setup(org_id, label)
         return
 
     # ── 1. Upsert prospect ──────────────────────────────────────────────────

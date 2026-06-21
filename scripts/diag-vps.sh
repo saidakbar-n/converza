@@ -5,8 +5,12 @@ set -euo pipefail
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_FILE="${CONVERZA_ENV:-/etc/converza/.env}"
 
-echo "==> Docker containers"
+echo "==> Docker containers (need hermes + bot + web all Up)"
 docker compose -f "$COMPOSE_FILE" ps -a 2>/dev/null || docker-compose -f "$COMPOSE_FILE" ps -a
+if ! docker compose -f "$COMPOSE_FILE" ps --status running 2>/dev/null | grep -q converza-web; then
+  echo "  WARN: converza-web not running — Telegram webhooks will 502 until web is up"
+  echo "  Fix: docker compose -f $COMPOSE_FILE up -d web"
+fi
 
 echo ""
 echo "==> Listening ports (8642 hermes, 8000 bot, 8001 web)"

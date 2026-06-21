@@ -143,10 +143,7 @@ async def _handle_sales_direct_message(update: TelegramUpdate) -> None:
     msg = update.message
     if not msg:
         return
-    text = (msg.text or "").strip()
-    if not text:
-        return
-    # Any DM to the sales bot (including /start, /admin) → redirect to App bot.
+    # Any DM to the sales bot (including /start, media) → redirect to App bot.
     await _sales_bot_reply(msg.chat.id)
 
 
