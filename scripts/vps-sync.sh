@@ -30,5 +30,14 @@ if ! grep -q 'converza_web/Converza_ai/requirements.txt' converza_web/Converza_a
   exit 1
 fi
 
+if grep -q 'no-onboard' deploy/hermes/Dockerfile deploy/hermes/entrypoint.sh 2>/dev/null; then
+  echo "ERROR: Hermes install still uses removed --no-onboard flag. git reset did not update deploy/hermes/." >&2
+  exit 1
+fi
+if grep -q 'hermes_data:/opt/hermes' docker-compose.prod.yml 2>/dev/null; then
+  echo "ERROR: docker-compose.prod.yml still mounts hermes_data over /opt/hermes." >&2
+  exit 1
+fi
+
 echo "==> Sync OK at $(git log -1 --oneline)"
 echo "    Next: sudo ./scripts/go-live.sh"

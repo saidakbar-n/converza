@@ -34,14 +34,10 @@ for var in GOOGLE_API_KEY GEMINI_API_KEY ANTHROPIC_API_KEY OPENROUTER_API_KEY \
   fi
 done
 
-if ! command -v hermes >/dev/null 2>&1; then
-  echo "Installing Hermes Agent (runtime fallback)..."
-  env -u PYTHONPATH -u PYTHONHOME bash -c \
-    'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-setup --skip-browser --no-skills --non-interactive'
-fi
-
-if ! command -v hermes >/dev/null 2>&1; then
-  echo "ERROR: hermes not found at /usr/local/bin/hermes after install. Check RAM (2GB+ recommended)." >&2
+if ! command -v hermes >/dev/null 2>&1 || [[ ! -x /usr/local/bin/hermes ]]; then
+  echo "ERROR: /usr/local/bin/hermes missing. VPS code is stale or image build failed." >&2
+  echo "  cd /opt/converza && git fetch origin && git reset --hard origin/main && git clean -fd" >&2
+  echo "  docker compose -f docker-compose.prod.yml build --no-cache hermes" >&2
   exit 1
 fi
 
