@@ -19,11 +19,13 @@ fi
 
 mkdir -p "${HERMES_HOME}/skills"
 
-# Hermes reads provider keys from ${HERMES_HOME}/.env
+# Hermes reads provider keys from ${HERMES_HOME}/.env (never Telegram — Converza owns webhooks).
 HERMES_ENV="${HERMES_HOME}/.env"
 touch "${HERMES_ENV}"
+# Strip Telegram vars so Hermes does not long-poll @ConverzaSales_bot (causes pairing spam).
+sed -i '/^TELEGRAM_/d' "${HERMES_ENV}" 2>/dev/null || true
 for var in GOOGLE_API_KEY GEMINI_API_KEY ANTHROPIC_API_KEY OPENROUTER_API_KEY \
-  SUPABASE_URL SUPABASE_SERVICE_KEY TELEGRAM_BOT_TOKEN; do
+  SUPABASE_URL SUPABASE_SERVICE_KEY; do
   val="${!var:-}"
   if [[ -n "$val" ]]; then
     if grep -q "^${var}=" "${HERMES_ENV}" 2>/dev/null; then
@@ -52,6 +54,15 @@ if [[ ! -f "$HERMES_CONFIG" ]] || ! grep -q "mcp_servers:" "$HERMES_CONFIG" 2>/d
     fi
   fi
 fi
+if [[ -f "$HERMES_CONFIG" ]] && ! grep -q "platforms:" "$HERMES_CONFIG" 2>/dev/null; then
+  cat >> "$HERMES_CONFIG" <<'EOF'
 
-echo "Starting Hermes gateway (API :${API_SERVER_PORT}, MCP converza)..."
+# Converza: Telegram handled by converza_bot webhooks, not Hermes polling
+platforms:
+  telegram:
+    enabled: false
+EOF
+fi
+
+echo "Starting Hermes gateway (API :${API_SERVER_PORT}, MCP converza; Telegram disabled)..."
 exec hermes gateway

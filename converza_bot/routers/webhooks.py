@@ -128,18 +128,26 @@ async def handle_app_successful_payment(update: TelegramUpdate) -> None:
     )
 
 
+async def _sales_bot_reply(chat_id: int) -> None:
+    """Sales bot is Business-DM closer only — no onboarding, admin, or passport."""
+    await send_sales_message(
+        chat_id,
+        "Bu bot — Converza sotuv yordamchisi.\n"
+        "Faqat Telegram Business orqali mijozlar bilan ishlaydi.\n\n"
+        f"Sozlash va boshqaruv: @{APP_BOT_USERNAME}\n"
+        f"Veb: {WEB_APP_URL}",
+    )
+
+
 async def _handle_sales_direct_message(update: TelegramUpdate) -> None:
     msg = update.message
-    if not msg or not msg.text:
+    if not msg:
         return
-    if msg.text.startswith("/"):
+    text = (msg.text or "").strip()
+    if not text:
         return
-    await send_sales_message(
-        msg.chat.id,
-        "Bu bot faqat Telegram Business orqali mijozlar bilan ishlaydi.\n\n"
-        f"Ro'yxatdan o'tish: @{APP_BOT_USERNAME}\n"
-        f"Veb-sahifa: {WEB_APP_URL}",
-    )
+    # Any DM to the sales bot (including /start, /admin) → redirect to App bot.
+    await _sales_bot_reply(msg.chat.id)
 
 
 def _log_background_task_error(task: asyncio.Task) -> None:

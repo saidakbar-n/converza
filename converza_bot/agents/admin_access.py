@@ -159,7 +159,7 @@ async def handle_admin_callback(callback: dict) -> None:
 
 async def handle_admin_command(chat_id: int, sender_id: int, text: str) -> None:
     if not is_admin_telegram_id(sender_id):
-        await send_message(chat_id, "Bu buyruq faqat adminlar uchun.")
+        await send_message(chat_id, "Noma'lum buyruq. /help — yordam ro'yxati.")
         return
 
     parts = text.strip().split(maxsplit=2)

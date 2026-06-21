@@ -55,6 +55,18 @@ DM Closer requires: active subscription + Business connection + passport (name, 
 - [ ] `TELEGRAM_WEBHOOK_SECRET` set on VPS
 - [ ] Unauthenticated API → 401
 - [ ] Hermes container healthy: `curl http://127.0.0.1:8642/health` on VPS
+- [ ] Hermes does **not** own Telegram (`TELEGRAM_*` absent from Hermes `.env`; sales bot DMs show Converza redirect, not Hermes pairing)
+
+## Agent smoke test (VPS)
+
+```bash
+chmod +x scripts/test-agent.sh
+./scripts/test-agent.sh
+# With org UUID after owner setup:
+./scripts/test-agent.sh <org_id>
+```
+
+Hermes-only check: reply contains `AGENT_OK`. Full closer needs Business DM (section 4).
 
 ## 7. Nightly report
 

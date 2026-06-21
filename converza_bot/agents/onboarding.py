@@ -376,7 +376,13 @@ async def handle_onboarding_message(update: TelegramUpdate) -> None:
     sender_username = sender.username if sender else None
 
     if is_admin_command(text):
-        await handle_admin_command(chat_id, sender_id, text)
+        if is_admin_telegram_id(sender_id):
+            await handle_admin_command(chat_id, sender_id, text)
+        else:
+            await send_message(
+                chat_id,
+                "Noma'lum buyruq. /help — yordam ro'yxati.",
+            )
         return
 
     if not is_admin_telegram_id(sender_id) and not is_user_approved(sender_id, sender_username):

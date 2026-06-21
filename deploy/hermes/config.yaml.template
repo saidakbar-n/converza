@@ -7,6 +7,11 @@ model:
   provider: gemini
   base_url: https://generativelanguage.googleapis.com/v1beta
 
+# Converza owns Telegram via converza_bot webhooks — Hermes is HTTP API + MCP only.
+platforms:
+  telegram:
+    enabled: false
+
 mcp_servers:
   converza:
     command: python3
