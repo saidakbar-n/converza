@@ -10,7 +10,8 @@ ENV PYTHONPATH=/app
 
 WORKDIR /app
 
-RUN pip3 install --no-cache-dir mcp supabase httpx pydantic
+# Debian bookworm blocks system pip (PEP 668); safe to override inside this container.
+RUN pip3 install --no-cache-dir --break-system-packages mcp supabase httpx pydantic
 
 COPY converza_mcp /app/converza_mcp
 COPY deploy/hermes/skills /app/hermes-skills
