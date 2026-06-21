@@ -75,24 +75,34 @@ async def run_dm_closer_json(
     Uses direct Groq when GROQ_API_KEY is set (avoids Hermes MCP context limits on
     small VPS). Falls back to Hermes otherwise.
     """
+    from converza_agent.closer_schema import normalize_closer_json
     from converza_agent.groq_client import groq_complete_json, groq_configured
 
     system = load_skill_prompt("dm-closer")
+    schema_hint = (
+        "\n\nOUTPUT SCHEMA (exact keys only — no response, confidence, intent, or extra fields):\n"
+        '{"reply":"...","client_condition":"cold|warm|purchasing|closed",'
+        '"condition_reason":"...","invoice_required":false,"invoice_tier":null}'
+    )
+    system = system.rstrip() + schema_hint
+
     if groq_configured():
-        return await groq_complete_json(
+        raw = await groq_complete_json(
             system,
             user_content,
             max_tokens=max_tokens,
             temperature=temperature,
         )
+        return normalize_closer_json(raw)
 
-    return await run_agent_json(
+    raw = await run_agent_json(
         "dm-closer",
         [{"role": "user", "content": user_content}],
         session_key=None,
         max_tokens=max_tokens,
         temperature=temperature,
     )
+    return normalize_closer_json(raw)
 
 
 async def run_agent_json(

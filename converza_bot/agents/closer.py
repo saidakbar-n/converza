@@ -99,7 +99,14 @@ async def generate_reply(
         )
 
     if draft_json:
-        draft = draft_json.get("reply", "").strip()
+        draft = (draft_json.get("reply") or "").strip()
+        if not draft:
+            logger.warning(
+                "DM closer empty reply org_id=%s keys=%s",
+                org_id,
+                list(draft_json.keys()),
+            )
+            draft = "Kechirasiz, men hozir javob bera olmayman."
         condition = draft_json.get("client_condition", "cold")
         reason = draft_json.get("condition_reason", "")
         invoice_required = bool(draft_json.get("invoice_required"))
