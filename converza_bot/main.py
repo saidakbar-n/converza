@@ -37,6 +37,12 @@ APP_ADMIN_COMMANDS = APP_COMMANDS + [
     {"command": "reject", "description": "Arizani rad etish"},
 ]
 
+# Sales bot: redirect-only menu (no passport, admin, or Hermes commands).
+SALES_COMMANDS = [
+    {"command": "start", "description": "Bu bot haqida"},
+    {"command": "help", "description": "Boshqaruv botiga o'tish"},
+]
+
 
 async def _delete_commands(api_base: str) -> None:
     """Remove all slash commands for default scope and per-admin chat scopes."""
@@ -86,10 +92,10 @@ async def _set_commands(api_base: str, commands: list, admin_commands: list | No
 
 async def set_bot_commands() -> None:
     await _set_commands(app_api_base(), APP_COMMANDS, APP_ADMIN_COMMANDS)
-    # Sales bot: Business DMs only — wipe any legacy command menu (admin, passport, etc.).
     sales = sales_api_base()
     if sales and sales != app_api_base():
         await _delete_commands(sales)
+        await _set_commands(sales, SALES_COMMANDS, None)
     elif sales == app_api_base():
         logger.warning(
             "TELEGRAM_BOT_TOKEN equals TELEGRAM_APP_BOT_TOKEN — use separate bots"

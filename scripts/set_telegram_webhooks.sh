@@ -66,7 +66,7 @@ curl -fsS "https://api.telegram.org/bot${TELEGRAM_APP_BOT_TOKEN}/setWebhook" \
   -d "$(app_payload "${BASE}/webhook/app")"
 
 echo ""
-echo "Clearing @ConverzaSales_bot slash commands (Business DMs only, no admin menu)"
+echo "Setting @ConverzaSales_bot commands (/start + /help redirect only)"
 curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteMyCommands" \
   -H "Content-Type: application/json" \
   -d '{}'
@@ -80,6 +80,9 @@ if [[ -n "${ADMIN_TELEGRAM_IDS:-}" ]]; then
       -d "{\"scope\":{\"type\":\"chat\",\"chat_id\":${_aid}}}" || true
   done
 fi
+curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setMyCommands" \
+  -H "Content-Type: application/json" \
+  -d '{"commands":[{"command":"start","description":"Bu bot haqida"},{"command":"help","description":"Boshqaruv botiga o'\''tish"}]}'
 
 echo ""
 echo "Done."
