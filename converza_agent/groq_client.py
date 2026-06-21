@@ -39,6 +39,10 @@ async def groq_complete_json(
     if not key:
         raise RuntimeError("GROQ_API_KEY is not set")
 
+    system = system.rstrip()
+    if "json" not in system.lower():
+        system += "\n\nRespond with a single json object only."
+
     body = {
         "model": _groq_model(),
         "messages": [
@@ -47,7 +51,6 @@ async def groq_complete_json(
         ],
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "response_format": {"type": "json_object"},
     }
 
     async with httpx.AsyncClient(timeout=120.0) as client:
