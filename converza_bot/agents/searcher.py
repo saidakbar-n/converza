@@ -30,17 +30,27 @@ async def get_conversation_history(
     Return the last `limit` messages for this prospect, oldest first,
     formatted as {role, content} pairs for LLM context.
     """
+    import uuid as _uuid
+
     from db.supabase_client import sb
 
-    result = (
-        sb.table("messages")
-        .select("direction, role, content, sent_by, created_at")
-        .eq("org_id", org_id)
-        .eq("prospect_id", prospect_id)
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
-    )
+    try:
+        _uuid.UUID(str(prospect_id))
+    except (TypeError, ValueError):
+        return []
+
+    try:
+        result = (
+            sb.table("messages")
+            .select("direction, role, content, sent_by, created_at")
+            .eq("org_id", org_id)
+            .eq("prospect_id", prospect_id)
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+    except Exception:
+        return []
 
     rows = list(reversed(result.data or []))
 
