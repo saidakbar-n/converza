@@ -101,6 +101,10 @@ where tg_user_id is null
   and external_id is not null
   and external_id ~ '^[0-9]+$';
 
+update prospects
+set tg_chat_id = tg_user_id
+where tg_chat_id is null and tg_user_id is not null;
+
 create index if not exists idx_prospects_org_id on prospects (org_id);
 
 create table if not exists messages (

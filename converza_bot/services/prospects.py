@@ -13,18 +13,18 @@ from services.supabase_errors import format_supabase_error
 logger = logging.getLogger(__name__)
 
 
-def _telegram_user_id(external_id: str) -> int | str:
-    """Map external_id to tg_user_id (legacy live DB column)."""
+def _telegram_id(value: str | int) -> int | str:
     try:
-        return int(external_id)
+        return int(value)
     except (TypeError, ValueError):
-        return external_id
+        return value
 
 
 def _find_existing_prospect(
     org_id: str,
     platform: str,
     external_id: str,
+    chat_id: int | None = None,
 ) -> dict | None:
     row = _maybe_single(
         sb.table("prospects")
@@ -36,17 +36,31 @@ def _find_existing_prospect(
     if row:
         return row
 
-    tg_uid = _telegram_user_id(external_id)
+    tg_uid = _telegram_id(external_id)
     try:
-        return _maybe_single(
+        row = _maybe_single(
             sb.table("prospects")
             .select("id, conversation_id")
             .eq("org_id", org_id)
             .eq("tg_user_id", tg_uid)
         )
+        if row:
+            return row
     except Exception as exc:
         logger.debug("prospect lookup by tg_user_id skipped: %s", exc)
-        return None
+
+    if chat_id is not None:
+        try:
+            return _maybe_single(
+                sb.table("prospects")
+                .select("id, conversation_id")
+                .eq("org_id", org_id)
+                .eq("tg_chat_id", _telegram_id(chat_id))
+            )
+        except Exception as exc:
+            logger.debug("prospect lookup by tg_chat_id skipped: %s", exc)
+
+    return None
 
 
 def _build_prospect_payload(
@@ -54,15 +68,22 @@ def _build_prospect_payload(
     platform: str,
     external_id: str,
     meta: dict,
+    chat_id: int | None = None,
 ) -> dict:
+    tg_uid = _telegram_id(external_id)
     payload = {
         "org_id": org_id,
         "platform": platform,
         "external_id": external_id,
         "metadata": meta,
-        # Legacy live schema (NOT NULL tg_user_id on older Supabase projects).
-        "tg_user_id": _telegram_user_id(external_id),
+        # Legacy live schema columns (older Supabase projects).
+        "tg_user_id": tg_uid,
     }
+    if chat_id is not None:
+        payload["tg_chat_id"] = _telegram_id(chat_id)
+    elif isinstance(tg_uid, int):
+        # Private DM: chat id usually equals user id.
+        payload["tg_chat_id"] = tg_uid
     return payload
 
 
@@ -88,6 +109,7 @@ def get_or_create_prospect(
     metadata: dict | None = None,
     *,
     platform: str = "telegram",
+    chat_id: int | None = None,
 ) -> tuple[str, str | None]:
     """
     Return (prospect_id, conversation_id).
@@ -98,7 +120,7 @@ def get_or_create_prospect(
     ensure_organization(org_id)
     meta = {k: v for k, v in (metadata or {}).items() if v is not None}
 
-    existing = _find_existing_prospect(org_id, platform, external_id)
+    existing = _find_existing_prospect(org_id, platform, external_id, chat_id)
     if existing:
         prospect_id = str(existing["id"])
         conversation_id = existing.get("conversation_id")
@@ -114,13 +136,13 @@ def get_or_create_prospect(
                 logger.debug("prospect metadata update skipped: %s", exc)
         return prospect_id, conversation_id
 
-    payload = _build_prospect_payload(org_id, platform, external_id, meta)
+    payload = _build_prospect_payload(org_id, platform, external_id, meta, chat_id)
     try:
         inserted = sb.table("prospects").insert(payload).execute()
     except Exception as exc:
         err = format_supabase_error(exc)
         if "duplicate" in err.lower() or "23505" in err:
-            row = _find_existing_prospect(org_id, platform, external_id)
+            row = _find_existing_prospect(org_id, platform, external_id, chat_id)
             if row:
                 return str(row["id"]), row.get("conversation_id")
         logger.error(

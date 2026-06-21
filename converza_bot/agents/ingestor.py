@@ -132,6 +132,7 @@ async def ingest_message(update: TelegramUpdate, raw: dict | None = None) -> Non
                 "username": sender.username,
                 "language_code": sender.language_code,
             },
+            chat_id=msg.chat.id,
         )
         conversation_id = ensure_conversation_id(prospect_id, conversation_id)
 
