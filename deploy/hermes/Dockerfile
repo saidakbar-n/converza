@@ -5,8 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 ENV HERMES_HOME=/opt/hermes
-ENV PATH="/opt/hermes/bin:${PATH}"
-ENV PYTHONPATH=/app
+ENV PATH="/usr/local/bin:/opt/hermes/bin:${PATH}"
 
 WORKDIR /app
 
@@ -17,7 +16,13 @@ COPY converza_mcp /app/converza_mcp
 COPY deploy/hermes/skills /app/hermes-skills
 COPY deploy/hermes/config.yaml.template /app/hermes-config.yaml.template
 
-RUN curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --no-onboard
+# Install Hermes at build time (root Linux → /usr/local/bin/hermes, data in $HERMES_HOME).
+# PYTHONPATH must be unset during install or pip/entrypoints shadow the wrong checkout.
+RUN env -u PYTHONPATH -u PYTHONHOME curl -fsSL https://hermes-agent.nousresearch.com/install.sh \
+    | bash -s -- --skip-setup --skip-browser --no-skills --non-interactive \
+    && test -x /usr/local/bin/hermes
+
+ENV PYTHONPATH=/app
 
 COPY deploy/hermes/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

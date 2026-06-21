@@ -2,6 +2,7 @@
 set -euo pipefail
 
 export HERMES_HOME="${HERMES_HOME:-/opt/hermes}"
+export PATH="/usr/local/bin:/opt/hermes/bin:${PATH}"
 export API_SERVER_ENABLED="${API_SERVER_ENABLED:-true}"
 export API_SERVER_HOST="${API_SERVER_HOST:-0.0.0.0}"
 export API_SERVER_PORT="${API_SERVER_PORT:-8642}"
@@ -34,13 +35,13 @@ for var in GOOGLE_API_KEY GEMINI_API_KEY ANTHROPIC_API_KEY OPENROUTER_API_KEY \
 done
 
 if ! command -v hermes >/dev/null 2>&1; then
-  echo "Installing Hermes Agent into ${HERMES_HOME}..."
-  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --no-onboard
-  export PATH="${HERMES_HOME}/bin:${PATH}"
+  echo "Installing Hermes Agent (runtime fallback)..."
+  env -u PYTHONPATH -u PYTHONHOME bash -c \
+    'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-setup --skip-browser --no-skills --non-interactive'
 fi
 
 if ! command -v hermes >/dev/null 2>&1; then
-  echo "ERROR: hermes binary not found after install. Check container logs and RAM (need ~2GB+)." >&2
+  echo "ERROR: hermes not found at /usr/local/bin/hermes after install. Check RAM (2GB+ recommended)." >&2
   exit 1
 fi
 
