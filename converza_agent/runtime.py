@@ -63,6 +63,38 @@ async def run_agent_text(
     )
 
 
+async def run_dm_closer_json(
+    user_content: str,
+    *,
+    max_tokens: int = 600,
+    temperature: float = 0.3,
+) -> dict:
+    """
+    DM Closer JSON reply.
+
+    Uses direct Groq when GROQ_API_KEY is set (avoids Hermes MCP context limits on
+    small VPS). Falls back to Hermes otherwise.
+    """
+    from converza_agent.groq_client import groq_complete_json, groq_configured
+
+    system = load_skill_prompt("dm-closer")
+    if groq_configured():
+        return await groq_complete_json(
+            system,
+            user_content,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+
+    return await run_agent_json(
+        "dm-closer",
+        [{"role": "user", "content": user_content}],
+        session_key=None,
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
+
+
 async def run_agent_json(
     agent_id: str,
     messages: list[dict[str, Any]],

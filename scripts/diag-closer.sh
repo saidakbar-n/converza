@@ -21,7 +21,7 @@ import json
 import uuid
 
 from agents.searcher import get_conversation_history, get_organization
-from converza_agent.runtime import run_agent_json
+from converza_agent.runtime import run_dm_closer_json
 
 org_id = "${ORG_ID}"
 prospect_id = "${PROSPECT_ID}".strip() or None
@@ -46,12 +46,10 @@ async def main():
         "payments_enabled": False,
     }
     print("==> brand_name:", (brand.get("brand_name") or "(missing)"))
-    print("==> Hermes dm-closer")
+    print("==> DM closer (Groq direct when GROQ_API_KEY set)")
     try:
-        result = await run_agent_json(
-            "dm-closer",
-            [{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
-            session_key=None,
+        result = await run_dm_closer_json(
+            json.dumps(payload, ensure_ascii=False),
             max_tokens=600,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))

@@ -20,7 +20,7 @@ from services.payments import (
     payment_unavailable_prospect_message,
 )
 from converza_agent.config import hermes_model
-from converza_agent.runtime import run_agent_json
+from converza_agent.runtime import run_dm_closer_json
 
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
@@ -72,7 +72,6 @@ async def generate_reply(
     brand = org.get("brand_context", {})
     click_token = get_payment_provider_token(org)
     conn_id = await _resolve_business_connection_id(org_id, business_connection_id)
-    conn_id = await _resolve_business_connection_id(org_id, business_connection_id)
 
     history = await get_conversation_history(org_id, prospect_id, limit=8)
     payments_enabled = is_configured_provider_token(click_token)
@@ -88,16 +87,12 @@ async def generate_reply(
     }
 
     draft_json: dict | None = None
+    user_content = json.dumps(payload, ensure_ascii=False)
     try:
-        draft_json = await run_agent_json(
-            "dm-closer",
-            [{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
-            session_key=None,
-            max_tokens=600,
-        )
+        draft_json = await run_dm_closer_json(user_content, max_tokens=600)
     except Exception as exc:
         logger.exception(
-            "Hermes dm-closer failed org_id=%s prospect_id=%s: %s",
+            "DM closer LLM failed org_id=%s prospect_id=%s: %s",
             org_id,
             prospect_id,
             exc,
