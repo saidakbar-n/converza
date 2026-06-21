@@ -63,3 +63,36 @@ create table if not exists org_subscriptions (
 
 create index if not exists idx_org_subscriptions_status
     on org_subscriptions (status, current_period_end desc);
+
+-- ─── 007 DM Closer (prospects + messages) ───
+-- Run supabase/migrations/003_align_live_schema.sql first if org_id was uuid.
+create table if not exists prospects (
+    id uuid primary key default gen_random_uuid(),
+    org_id text not null references organizations (id) on delete cascade,
+    platform text not null default 'telegram',
+    external_id text not null,
+    conversation_id uuid,
+    client_condition text default 'cold',
+    condition_reason text,
+    metadata jsonb default '{}'::jsonb,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    unique (org_id, platform, external_id)
+);
+
+create index if not exists idx_prospects_org_id on prospects (org_id);
+
+create table if not exists messages (
+    id uuid primary key default gen_random_uuid(),
+    org_id text not null references organizations (id) on delete cascade,
+    prospect_id uuid references prospects (id) on delete set null,
+    conversation_id uuid,
+    direction text not null check (direction in ('inbound', 'outbound')),
+    content text not null,
+    sent_by text not null default 'ai',
+    agent_model text,
+    created_at timestamptz not null default now()
+);
+
+create index if not exists idx_messages_org_prospect on messages (org_id, prospect_id);
+create index if not exists idx_messages_conversation on messages (conversation_id);

@@ -61,7 +61,7 @@ def lookup_business_connection_id(org_id: str) -> str | None:
     return None
 
 
-def resolve_org_id(update: TelegramUpdate) -> str:
+def resolve_org_id(update: TelegramUpdate, raw: dict | None = None) -> str:
     """
     Map an inbound update to the owning organization.
 
@@ -69,7 +69,7 @@ def resolve_org_id(update: TelegramUpdate) -> str:
     1. business_message / edited_business_message business_connection_id -> organizations row
     2. DEFAULT_ORG_ID fallback (development only)
     """
-    raw = update.model_dump(by_alias=True)
+    raw = raw or update.model_dump(by_alias=True)
     from services.telegram_inbound import raw_business_message
 
     business_message = raw_business_message(raw) or {}

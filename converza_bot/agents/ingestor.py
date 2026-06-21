@@ -11,13 +11,14 @@ Responsibilities:
 """
 
 import logging
-import uuid
 
-from models.schemas import TelegramUpdate, ProspectCreate, MessageCreate
+from models.schemas import TelegramUpdate, MessageCreate
 from db.supabase_client import sb
 from agents.closer import generate_reply
 from services.closer_readiness import assess_closer_readiness, readiness_label
 from services.org_resolver import resolve_org_id
+from services.prospects import ensure_conversation_id, get_or_create_prospect
+from services.supabase_errors import format_supabase_error
 from services.telegram_inbound import (
     extract_sender,
     is_outgoing_business_echo,
@@ -99,7 +100,7 @@ async def ingest_message(update: TelegramUpdate, raw: dict | None = None) -> Non
         return
 
     try:
-        org_id = resolve_org_id(update)
+        org_id = resolve_org_id(update, raw=raw)
     except ValueError as exc:
         logger.error("ingest_message org resolution failed: %s", exc)
         conn = (raw_business_message(raw) or {}).get("business_connection_id")
@@ -122,66 +123,46 @@ async def ingest_message(update: TelegramUpdate, raw: dict | None = None) -> Non
         await _alert_owner_setup(org_id, label)
         return
 
-    # ── 1. Upsert prospect ──────────────────────────────────────────────────
-    prospect_data = ProspectCreate(
-        org_id=org_id,
-        platform="telegram",
-        external_id=str(sender.id),
-        metadata={
-            "first_name": sender.first_name,
-            "username": sender.username,
-            "language_code": sender.language_code,
-        },
-    )
-
-    upsert_result = (
-        sb.table("prospects")
-        .upsert(
-            prospect_data.model_dump(),
-            on_conflict="org_id,platform,external_id",
+    try:
+        prospect_id, conversation_id = get_or_create_prospect(
+            org_id,
+            str(sender.id),
+            metadata={
+                "first_name": sender.first_name,
+                "username": sender.username,
+                "language_code": sender.language_code,
+            },
         )
-        .execute()
-    )
+        conversation_id = ensure_conversation_id(prospect_id, conversation_id)
 
-    prospect_id: str | None = None
-    conversation_id: str | None = None
-    if upsert_result.data:
-        prospect_id = upsert_result.data[0]["id"]
-        conversation_id = upsert_result.data[0].get("conversation_id")
+        inbound = MessageCreate(
+            org_id=org_id,
+            prospect_id=prospect_id,
+            direction="inbound",
+            content=inbound_text,
+            sent_by="system",
+            conversation_id=conversation_id,
+        )
+        sb.table("messages").insert(inbound.model_dump()).execute()
 
-    # ── 2. Ensure conversation_id exists on the prospect ────────────────────
-    if prospect_id and not conversation_id:
-        conversation_id = str(uuid.uuid4())
-        sb.table("prospects").update(
-            {"conversation_id": conversation_id}
-        ).eq("id", prospect_id).execute()
-
-    # ── 3. Log inbound message ──────────────────────────────────────────────
-    inbound = MessageCreate(
-        org_id=org_id,
-        prospect_id=prospect_id,
-        direction="inbound",
-        content=inbound_text,
-        sent_by="system",
-        conversation_id=conversation_id,
-    )
-    sb.table("messages").insert(inbound.model_dump()).execute()
-
-    # ── 4. Hand off to closer ───────────────────────────────────────────────
-    if prospect_id and conversation_id:
-        try:
-            await generate_reply(
-                chat_id=msg.chat.id,
-                prospect_id=prospect_id,
-                inbound_text=inbound_text,
-                org_id=org_id,
-                conversation_id=conversation_id,
-                business_connection_id=business_connection_id,
-            )
-        except Exception:
-            logger.exception(
-                "generate_reply failed org_id=%s prospect_id=%s update_id=%s",
-                org_id,
-                prospect_id,
-                update.update_id,
-            )
+        await generate_reply(
+            chat_id=msg.chat.id,
+            prospect_id=prospect_id,
+            inbound_text=inbound_text,
+            org_id=org_id,
+            conversation_id=conversation_id,
+            business_connection_id=business_connection_id,
+        )
+    except Exception as exc:
+        logger.exception(
+            "ingest_message failed update_id=%s org_id=%s chat_id=%s: %s",
+            update.update_id,
+            org_id,
+            msg.chat.id,
+            format_supabase_error(exc),
+        )
+        await send_message(
+            msg.chat.id,
+            "Kechirasiz, texnik xatolik yuz berdi. Birozdan so'ng qayta yozing.",
+            business_connection_id=business_connection_id,
+        )
