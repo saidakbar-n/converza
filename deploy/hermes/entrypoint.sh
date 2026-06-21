@@ -36,13 +36,6 @@ for var in GOOGLE_API_KEY GEMINI_API_KEY ANTHROPIC_API_KEY OPENROUTER_API_KEY \
   fi
 done
 
-if ! command -v hermes >/dev/null 2>&1 || [[ ! -x /usr/local/bin/hermes ]]; then
-  echo "ERROR: /usr/local/bin/hermes missing. VPS code is stale or image build failed." >&2
-  echo "  cd /opt/converza && git fetch origin && git reset --hard origin/main && git clean -fd" >&2
-  echo "  docker compose -f docker-compose.prod.yml build --no-cache hermes" >&2
-  exit 1
-fi
-
 HERMES_CONFIG="${HERMES_HOME}/config.yaml"
 if [[ ! -f "$HERMES_CONFIG" ]] || ! grep -q "mcp_servers:" "$HERMES_CONFIG" 2>/dev/null; then
   cp -r /app/hermes-skills/* "${HERMES_HOME}/skills/" 2>/dev/null || true
@@ -54,6 +47,20 @@ if [[ ! -f "$HERMES_CONFIG" ]] || ! grep -q "mcp_servers:" "$HERMES_CONFIG" 2>/d
     fi
   fi
 fi
+
+# Override Gemini model from env (fixes 404 when default model unavailable for this API key).
+GEMINI_MODEL="${HERMES_GEMINI_MODEL:-${GEMINI_MODEL:-}}"
+if [[ -n "$GEMINI_MODEL" && -f "$HERMES_CONFIG" ]]; then
+  sed -i "/^[[:space:]]*default:/ s/default: .*/default: ${GEMINI_MODEL}/" "$HERMES_CONFIG" 2>/dev/null || true
+fi
+
+if ! command -v hermes >/dev/null 2>&1 || [[ ! -x /usr/local/bin/hermes ]]; then
+  echo "ERROR: /usr/local/bin/hermes missing. VPS code is stale or image build failed." >&2
+  echo "  cd /opt/converza && git fetch origin && git reset --hard origin/main && git clean -fd" >&2
+  echo "  docker compose -f docker-compose.prod.yml build --no-cache hermes" >&2
+  exit 1
+fi
+
 if [[ -f "$HERMES_CONFIG" ]] && ! grep -q "platforms:" "$HERMES_CONFIG" 2>/dev/null; then
   cat >> "$HERMES_CONFIG" <<'EOF'
 

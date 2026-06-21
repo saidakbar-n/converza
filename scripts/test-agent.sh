@@ -30,20 +30,40 @@ if [[ -z "$KEY" ]]; then
 fi
 
 echo "==> Hermes chat completion (minimal)"
-RESP=$(curl -fsS -X POST "${HERMES_URL}/v1/chat/completions" \
+MODEL="${HERMES_GEMINI_MODEL:-${GEMINI_MODEL:-gemini-2.0-flash}}"
+BODY=$(python3 -c "import json; print(json.dumps({'model':'${MODEL}','messages':[{'role':'user','content':'Reply with exactly: AGENT_OK'}],'stream':False,'max_tokens':32,'temperature':0}))")
+
+HTTP=$(curl -s -w "%{http_code}" -o /tmp/hermes-test.json \
+  -X POST "${HERMES_URL}/v1/chat/completions" \
   -H "Authorization: Bearer ${KEY}" \
   -H "Content-Type: application/json" \
-  -d '{"model":"hermes-agent","messages":[{"role":"user","content":"Reply with exactly: AGENT_OK"}],"stream":false,"max_tokens":32,"temperature":0}')
+  -d "$BODY")
+echo "  model: ${MODEL}  HTTP: ${HTTP}"
 
-echo "$RESP" | python3 -c "
+python3 <<'PY'
 import json, sys
-data = json.load(sys.stdin)
-text = data['choices'][0]['message']['content']
-print('  reply:', text[:200])
-if 'AGENT_OK' not in text.upper():
-    raise SystemExit('  FAIL: unexpected reply')
-print('  OK  Hermes LLM responding')
-"
+raw = open("/tmp/hermes-test.json").read()
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError:
+    print("  raw:", raw[:500])
+    sys.exit(1)
+if "error" in data:
+    print("  ERROR:", data["error"])
+    sys.exit(1)
+try:
+    text = data["choices"][0]["message"]["content"]
+except (KeyError, IndexError, TypeError):
+    print("  unexpected:", data)
+    sys.exit(1)
+print("  reply:", text[:200])
+if "AGENT_OK" not in text.upper() and "GEMINI_OK" not in text.upper():
+    if "404" in text or "failed" in text.lower():
+        print("  FAIL: LLM provider error — run ./scripts/diag-gemini.sh")
+        sys.exit(1)
+    print("  WARN: unexpected wording but Hermes returned text")
+print("  OK  Hermes LLM responding")
+PY
 
 ORG_ID="${1:-}"
 if [[ -n "$ORG_ID" ]]; then

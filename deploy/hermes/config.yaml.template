@@ -3,9 +3,8 @@
 # LLM provider — set GOOGLE_API_KEY in env and use gemini (see deploy/DEPLOY.md).
 # Override model via HERMES_MODEL / config after first boot if needed.
 model:
-  default: gemini-2.5-flash
+  default: gemini-2.0-flash
   provider: gemini
-  base_url: https://generativelanguage.googleapis.com/v1beta
 
 # Converza owns Telegram via converza_bot webhooks — Hermes is HTTP API + MCP only.
 platforms:
