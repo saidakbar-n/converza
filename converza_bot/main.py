@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import asyncio
 import logging
 import os
 
@@ -102,6 +103,20 @@ async def set_bot_commands() -> None:
         )
 
 
+async def _refresh_sales_commands_delayed() -> None:
+    """Hermes gateway may register its own menu async — re-apply Converza menu."""
+    import asyncio
+
+    sales = sales_api_base()
+    if not sales or sales == app_api_base():
+        return
+    for delay in (15, 45, 120):
+        await asyncio.sleep(delay)
+        await _delete_commands(sales)
+        await _set_commands(sales, SALES_COMMANDS, None)
+        logger.info("Re-applied sales bot commands after %ss (override Hermes menu)", delay)
+
+
 def _validate_startup() -> None:
     require_env_vars(
         [
@@ -120,6 +135,7 @@ def _validate_startup() -> None:
 async def lifespan(app: FastAPI):
     _validate_startup()
     await set_bot_commands()
+    asyncio.create_task(_refresh_sales_commands_delayed())
 
     scheduler = AsyncIOScheduler()
     trigger = CronTrigger(hour=23, minute=59, timezone="Asia/Tashkent")

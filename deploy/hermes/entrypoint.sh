@@ -63,6 +63,12 @@ platforms:
     enabled: false
 EOF
 fi
+# Hermes may persist telegram: enabled: true — force off every start.
+if [[ -f "$HERMES_CONFIG" ]] && grep -q 'telegram:' "$HERMES_CONFIG" 2>/dev/null; then
+  sed -i '/bot_token:/d' "$HERMES_CONFIG" 2>/dev/null || true
+  sed -i '/^[[:space:]]*telegram:/,/^[[:space:]]*[a-z_]*:/ s/enabled: true/enabled: false/' "$HERMES_CONFIG" 2>/dev/null || true
+  sed -i '/telegram:/,/enabled:/ s/enabled: true/enabled: false/' "$HERMES_CONFIG" 2>/dev/null || true
+fi
 
 # docker compose env_file still injects TELEGRAM_BOT_TOKEN — Hermes polls and deletes webhooks.
 for tgvar in TELEGRAM_BOT_TOKEN TELEGRAM_APP_BOT_TOKEN TELEGRAM_ALLOWED_USERS \

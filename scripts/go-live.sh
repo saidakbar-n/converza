@@ -126,6 +126,12 @@ chmod +x "$ROOT/scripts/set_telegram_webhooks.sh"
 "$ROOT/scripts/set_telegram_webhooks.sh"
 
 echo ""
+echo "==> Fix sales bot command menu (override Hermes /new /model etc.)"
+sleep 20
+chmod +x "$ROOT/scripts/fix-sales-bot-commands.sh"
+"$ROOT/scripts/fix-sales-bot-commands.sh"
+
+echo ""
 echo "==> Webhook status"
 chmod +x "$ROOT/scripts/verify-webhooks.sh"
 CONVERZA_ENV="$ENV_FILE" "$ROOT/scripts/verify-webhooks.sh"

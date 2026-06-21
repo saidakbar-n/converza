@@ -66,23 +66,8 @@ curl -fsS "https://api.telegram.org/bot${TELEGRAM_APP_BOT_TOKEN}/setWebhook" \
   -d "$(app_payload "${BASE}/webhook/app")"
 
 echo ""
-echo "Setting @ConverzaSales_bot commands (/start + /help redirect only)"
-curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteMyCommands" \
-  -H "Content-Type: application/json" \
-  -d '{}'
-if [[ -n "${ADMIN_TELEGRAM_IDS:-}" ]]; then
-  IFS=',' read -ra _ADMINS <<< "$ADMIN_TELEGRAM_IDS"
-  for _aid in "${_ADMINS[@]}"; do
-    _aid="${_aid// /}"
-    [[ -n "$_aid" ]] || continue
-    curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteMyCommands" \
-      -H "Content-Type: application/json" \
-      -d "{\"scope\":{\"type\":\"chat\",\"chat_id\":${_aid}}}" || true
-  done
-fi
-curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setMyCommands" \
-  -H "Content-Type: application/json" \
-  -d '{"commands":[{"command":"start","description":"Bu bot haqida"},{"command":"help","description":"Boshqaruv botiga o'\''tish"}]}'
+chmod +x "$ROOT/scripts/fix-sales-bot-commands.sh"
+"$ROOT/scripts/fix-sales-bot-commands.sh"
 
 echo ""
 echo "Done."
