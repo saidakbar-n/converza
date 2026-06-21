@@ -62,11 +62,11 @@ DM Closer requires: active subscription + Business connection + passport (name, 
 ```bash
 chmod +x scripts/test-agent.sh
 ./scripts/test-agent.sh
-# With org UUID after owner setup:
+# With org id after owner setup (owner Telegram user id):
 ./scripts/test-agent.sh <org_id>
 ```
 
-Hermes-only check: reply contains `AGENT_OK`. Full closer needs Business DM (section 4).
+Hermes-only check: reply contains `AGENT_OK`. Full closer validation: section 4 (Real Telegram Business DM).
 
 ## 7. Nightly report
 

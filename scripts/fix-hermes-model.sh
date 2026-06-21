@@ -20,3 +20,10 @@ docker compose -f "$COMPOSE_FILE" exec -T hermes grep -A3 '^model:' /opt/hermes/
 echo ""
 echo "Restarting hermes..."
 docker compose -f "$COMPOSE_FILE" restart hermes
+chmod +x "$ROOT/scripts/wait-hermes.sh"
+echo ""
+echo "Waiting for Hermes API..."
+"$ROOT/scripts/wait-hermes.sh" || {
+  docker compose -f "$COMPOSE_FILE" logs hermes --tail 40
+  exit 1
+}

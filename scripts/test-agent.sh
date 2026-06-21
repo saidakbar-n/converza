@@ -21,6 +21,8 @@ HERMES_URL="${HERMES_URL%/}"
 KEY="${HERMES_API_KEY:-}"
 
 echo "==> Hermes health"
+chmod +x "$ROOT/scripts/wait-hermes.sh"
+HERMES_URL="$HERMES_URL" "$ROOT/scripts/wait-hermes.sh"
 curl -fsS "${HERMES_URL}/health"
 echo ""
 
@@ -29,7 +31,6 @@ if [[ -z "$KEY" ]]; then
   exit 1
 fi
 
-echo "==> Hermes chat completion (minimal)"
 if [[ -n "${GROQ_API_KEY:-}" ]] || [[ "${CONVERZA_LLM_PROVIDER:-}" == "groq" ]]; then
   MODEL="${HERMES_GROQ_MODEL:-llama-3.3-70b-versatile}"
 elif [[ -n "${ANTHROPIC_API_KEY:-}" ]] || [[ "${CONVERZA_LLM_PROVIDER:-}" == "anthropic" ]]; then
@@ -37,12 +38,16 @@ elif [[ -n "${ANTHROPIC_API_KEY:-}" ]] || [[ "${CONVERZA_LLM_PROVIDER:-}" == "an
 else
   MODEL="${HERMES_GEMINI_MODEL:-${GEMINI_MODEL:-gemini-2.0-flash}}"
 fi
-BODY=$(python3 -c "import json; print(json.dumps({'model':'${MODEL}','messages':[{'role':'user','content':'Reply with exactly: AGENT_OK'}],'stream':False,'max_tokens':32,'temperature':0}))")
+
+echo "==> Hermes chat completion (minimal smoke — fresh session, no MCP loop)"
+BODY=$(python3 -c "import json; print(json.dumps({'model':'${MODEL}','messages':[{'role':'user','content':'Reply with exactly one word: AGENT_OK'}],'stream':False,'max_tokens':8,'temperature':0}))")
+SESSION_KEY="test-agent-smoke-$(date +%s)"
 
 HTTP=$(curl -s -w "%{http_code}" -o /tmp/hermes-test.json \
   -X POST "${HERMES_URL}/v1/chat/completions" \
   -H "Authorization: Bearer ${KEY}" \
   -H "Content-Type: application/json" \
+  -H "X-Hermes-Session-Key: ${SESSION_KEY}" \
   -d "$BODY")
 echo "  model: ${MODEL}  HTTP: ${HTTP}"
 
