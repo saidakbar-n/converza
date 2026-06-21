@@ -18,7 +18,13 @@ load_env() {
 }
 
 if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_APP_BOT_TOKEN:-}" ]]; then
-  load_env "$ROOT/converza_bot/.env" || load_env "$ENV_FILE" || true
+  load_env "$ROOT/converza_bot/.env" || true
+  load_env "$ENV_FILE" || true
+fi
+
+# /etc/converza/.env wins on VPS (converza_bot/.env may be a stale partial copy)
+if [[ -f "$ENV_FILE" ]]; then
+  load_env "$ENV_FILE" || true
 fi
 
 if [[ -z "${TELEGRAM_BOT_TOKEN:-}" ]]; then
