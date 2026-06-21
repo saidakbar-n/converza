@@ -1,7 +1,7 @@
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl git ripgrep ffmpeg python3 python3-pip python3-venv \
+    ca-certificates curl git ripgrep ffmpeg python3 python3-pip python3-venv xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
 ENV HERMES_HOME=/opt/hermes
