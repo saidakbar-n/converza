@@ -48,10 +48,9 @@ if [[ ! -f "$HERMES_CONFIG" ]] || ! grep -q "mcp_servers:" "$HERMES_CONFIG" 2>/d
   fi
 fi
 
-# Override Gemini model from env (fixes 404 when default model unavailable for this API key).
-GEMINI_MODEL="${HERMES_GEMINI_MODEL:-${GEMINI_MODEL:-}}"
-if [[ -n "$GEMINI_MODEL" && -f "$HERMES_CONFIG" ]]; then
-  sed -i "/^[[:space:]]*default:/ s/default: .*/default: ${GEMINI_MODEL}/" "$HERMES_CONFIG" 2>/dev/null || true
+# Hermes install may leave anthropic/opus defaults — align with Converza env keys.
+if [[ -f "$HERMES_CONFIG" ]]; then
+  python3 /app/deploy/hermes/patch_model.py "$HERMES_CONFIG" || true
 fi
 
 if ! command -v hermes >/dev/null 2>&1 || [[ ! -x /usr/local/bin/hermes ]]; then

@@ -48,7 +48,16 @@ else:
 "
 
 echo ""
-echo "==> Hermes container GOOGLE key present?"
+echo "==> Hermes model config (should match your LLM provider)"
 docker compose -f docker-compose.prod.yml exec -T hermes sh -c \
-  'grep -q "^GOOGLE_API_KEY=" /opt/hermes/.env 2>/dev/null && echo yes || echo NO; grep "^model:" -A3 /opt/hermes/config.yaml 2>/dev/null | head -6 || true' \
+  'grep -q "^GOOGLE_API_KEY=" /opt/hermes/.env 2>/dev/null && echo "  GOOGLE_API_KEY: yes" || echo "  GOOGLE_API_KEY: NO"; grep "^model:" -A4 /opt/hermes/config.yaml 2>/dev/null | head -8 || true' \
   2>/dev/null || echo "  (run from /opt/converza with hermes up)"
+
+if [[ "$HTTP" == "429" ]]; then
+  echo ""
+  echo "  QUOTA: Gemini free tier exhausted (HTTP 429). Options:"
+  echo "    1. Enable billing: https://aistudio.google.com/apikey"
+  echo "    2. Wait for quota reset (~1 min per message above)"
+  echo "    3. Use Anthropic: set CONVERZA_LLM_PROVIDER=anthropic + ANTHROPIC_API_KEY"
+  echo "       then run ./scripts/fix-hermes-model.sh"
+fi
