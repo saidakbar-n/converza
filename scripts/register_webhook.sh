@@ -74,12 +74,12 @@ case "${cmd}" in
             curl -fsS -X POST "${API}/setWebhook" \
                 -d "url=${WEBHOOK_URL}" \
                 -d "secret_token=${SECRET}" \
-                -d 'allowed_updates=["message","callback_query","business_connection","business_message","pre_checkout_query"]'
+                -d 'allowed_updates=["message","callback_query","business_connection","business_message","edited_business_message","pre_checkout_query"]'
         else
             echo "WARN: TELEGRAM_WEBHOOK_SECRET not set — webhook will accept any caller"
             curl -fsS -X POST "${API}/setWebhook" \
                 -d "url=${WEBHOOK_URL}" \
-                -d 'allowed_updates=["message","callback_query","business_connection","business_message","pre_checkout_query"]'
+                -d 'allowed_updates=["message","callback_query","business_connection","business_message","edited_business_message","pre_checkout_query"]'
         fi
         echo
         ;;

@@ -18,6 +18,12 @@ from db.supabase_client import sb
 from agents.closer import generate_reply
 from services.closer_readiness import assess_closer_readiness, readiness_label
 from services.org_resolver import resolve_org_id
+from services.telegram_inbound import (
+    extract_sender,
+    is_outgoing_business_echo,
+    raw_business_message,
+    resolve_inbound_message,
+)
 from services.telegram_send import send_app_message, send_message
 
 logger = logging.getLogger(__name__)
@@ -50,30 +56,40 @@ async def _alert_owner_setup(org_id: str, label: str) -> None:
         pass
 
 
-def _extract_business_connection_id(update: TelegramUpdate) -> str | None:
-    raw = update.model_dump(by_alias=True)
-    business_message = raw.get("business_message") or {}
+def _extract_business_connection_id(update: TelegramUpdate, raw: dict | None) -> str | None:
+    raw = raw or update.model_dump(by_alias=True)
+    business_message = raw_business_message(raw) or {}
     conn_id = business_message.get("business_connection_id")
     return str(conn_id) if conn_id else None
 
 
-async def ingest_message(update: TelegramUpdate) -> None:
-    msg = update.message or update.business_message
-    if not msg:
+async def ingest_message(update: TelegramUpdate, raw: dict | None = None) -> None:
+    raw = raw or update.model_dump(by_alias=True)
+    msg, raw_msg, inbound_text, is_business = resolve_inbound_message(update, raw)
+    if not msg or not raw_msg:
         return
 
-    sender = msg.from_
+    if is_business and is_outgoing_business_echo(raw_msg):
+        logger.debug(
+            "Skipping outgoing business echo update_id=%s message_id=%s",
+            update.update_id,
+            raw_msg.get("message_id"),
+        )
+        return
+
+    sender = extract_sender(msg, raw_msg)
     if not sender or sender.is_bot:
         return
 
-    business_connection_id = _extract_business_connection_id(update)
+    business_connection_id = _extract_business_connection_id(update, raw)
 
-    if not msg.text:
-        if update.business_message:
+    if not inbound_text:
+        if is_business:
             logger.info(
-                "Non-text business_message update_id=%s chat_id=%s — sending fallback",
+                "Non-text business_message update_id=%s chat_id=%s keys=%s",
                 update.update_id,
                 msg.chat.id,
+                sorted(raw_msg.keys()),
             )
             await send_message(
                 msg.chat.id,
@@ -86,8 +102,7 @@ async def ingest_message(update: TelegramUpdate) -> None:
         org_id = resolve_org_id(update)
     except ValueError as exc:
         logger.error("ingest_message org resolution failed: %s", exc)
-        raw = update.model_dump(by_alias=True)
-        conn = (raw.get("business_message") or {}).get("business_connection_id")
+        conn = (raw_business_message(raw) or {}).get("business_connection_id")
         logger.error(
             "business_connection_id=%s not linked to any org — "
             "owner should reconnect @ConverzaSales_bot in Telegram Business → Chatbots",
@@ -146,7 +161,7 @@ async def ingest_message(update: TelegramUpdate) -> None:
         org_id=org_id,
         prospect_id=prospect_id,
         direction="inbound",
-        content=msg.text,
+        content=inbound_text,
         sent_by="system",
         conversation_id=conversation_id,
     )
@@ -158,7 +173,7 @@ async def ingest_message(update: TelegramUpdate) -> None:
             await generate_reply(
                 chat_id=msg.chat.id,
                 prospect_id=prospect_id,
-                inbound_text=msg.text,
+                inbound_text=inbound_text,
                 org_id=org_id,
                 conversation_id=conversation_id,
                 business_connection_id=business_connection_id,

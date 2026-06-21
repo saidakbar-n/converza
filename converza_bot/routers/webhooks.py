@@ -155,7 +155,7 @@ def _log_background_task_error(task: asyncio.Task) -> None:
         logger.exception("Background webhook task failed: %s", exc)
 
 
-async def _dispatch_sales_update(update: TelegramUpdate) -> None:
+async def _dispatch_sales_update(update: TelegramUpdate, raw: dict | None = None) -> None:
     try:
         api = sales_api_base()
         if update.pre_checkout_query:
@@ -166,8 +166,10 @@ async def _dispatch_sales_update(update: TelegramUpdate) -> None:
             await handle_business_connection(update)
             return
 
-        if update.business_message:
-            await ingest_message(update)
+        from services.telegram_inbound import raw_business_message
+
+        if update.business_message or raw_business_message(raw):
+            await ingest_message(update, raw=raw)
             return
 
         if update.message:
@@ -207,16 +209,19 @@ async def _dispatch_app_update(update: TelegramUpdate) -> None:
 
 @router.post("/telegram")
 async def sales_webhook(
-    update: TelegramUpdate,
+    request: Request,
     x_telegram_bot_api_secret_token: str | None = Header(default=None),
 ):
     """@ConverzaSales_bot — Business DMs and end-customer invoices."""
     _verify_webhook_secret(x_telegram_bot_api_secret_token)
 
+    body = await request.json()
+    update = TelegramUpdate.model_validate(body)
+
     if is_duplicate(update.update_id):
         return {"ok": True}
 
-    task = asyncio.create_task(_dispatch_sales_update(update))
+    task = asyncio.create_task(_dispatch_sales_update(update, raw=body))
     task.add_done_callback(_log_background_task_error)
     return {"ok": True}
 

@@ -52,8 +52,11 @@ class TelegramUpdate(BaseModel):
     message: Optional[TelegramMessage] = None
     business_connection: Optional[dict] = None
     business_message: Optional[TelegramMessage] = None
+    edited_business_message: Optional[TelegramMessage] = None
     pre_checkout_query: Optional[dict] = None
     callback_query: Optional[dict] = None
+
+    model_config = {"populate_by_name": True, "extra": "allow"}
 
 
 # ── Internal domain models ───────────────────────────────────────────────────

@@ -66,11 +66,13 @@ def resolve_org_id(update: TelegramUpdate) -> str:
     Map an inbound update to the owning organization.
 
     Priority:
-    1. business_message.business_connection_id -> organizations row
+    1. business_message / edited_business_message business_connection_id -> organizations row
     2. DEFAULT_ORG_ID fallback (development only)
     """
     raw = update.model_dump(by_alias=True)
-    business_message = raw.get("business_message") or {}
+    from services.telegram_inbound import raw_business_message
+
+    business_message = raw_business_message(raw) or {}
     connection_id = business_message.get("business_connection_id")
 
     org_id = lookup_org_by_connection(connection_id) if connection_id else None

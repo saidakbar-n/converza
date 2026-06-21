@@ -39,9 +39,9 @@ fi
 sales_payload() {
   local url="$1"
   if [[ -n "$SECRET" ]]; then
-    printf '{"url":"%s","secret_token":"%s","allowed_updates":["message","business_message","business_connection","pre_checkout_query","callback_query"]}' "$url" "$SECRET"
+    printf '{"url":"%s","secret_token":"%s","allowed_updates":["message","business_message","edited_business_message","business_connection","pre_checkout_query","callback_query"]}' "$url" "$SECRET"
   else
-    printf '{"url":"%s","allowed_updates":["message","business_message","business_connection","pre_checkout_query","callback_query"]}' "$url"
+    printf '{"url":"%s","allowed_updates":["message","business_message","edited_business_message","business_connection","pre_checkout_query","callback_query"]}' "$url"
   fi
 }
 
