@@ -78,8 +78,25 @@ if [[ -z "${TELEGRAM_WEBHOOK_SECRET:-}" ]]; then
   echo "WARN: TELEGRAM_WEBHOOK_SECRET not set — webhooks accept any caller"
 fi
 
+echo "==> Git submodules (bot + web must match monorepo Dockerfiles)"
+if [[ -f .gitmodules ]] || git submodule status 2>/dev/null | grep -q '^'; then
+  git submodule update --init --recursive
+fi
+
 echo ""
-echo "==> Docker compose build + up ($COMPOSE_FILE)"
+echo "==> Docker build preflight"
+if [[ ! -f converza_bot/requirements.txt ]]; then
+  echo "ERROR: converza_bot/ is empty — run: git submodule update --init --recursive" >&2
+  echo "       Or pull a monorepo commit that vendors bot/web (not submodule gitlinks)." >&2
+  exit 1
+fi
+if ! grep -q 'converza_web/Converza_ai/requirements.txt' converza_web/Converza_ai/Dockerfile 2>/dev/null; then
+  echo "ERROR: converza_web/Converza_ai/Dockerfile is outdated (expected monorepo COPY paths)." >&2
+  echo "       cd converza_web/Converza_ai && git pull  OR  git submodule update --init --recursive" >&2
+  exit 1
+fi
+
+echo ""
 docker compose -f "$COMPOSE_FILE" up -d --build
 
 echo ""

@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+supabase
+httpx
+python-dotenv
+pydantic
+PyMuPDF
+python-multipart
+apscheduler
+redis
+converza_bot/requirements.txt

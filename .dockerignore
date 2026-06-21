@@ -1,0 +1,17 @@
+.git
+.gitmodules
+**/.git
+**/venv
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.env
+**/.env.*
+**/node_modules
+**/.claude
+**/.cursor
+**/*.md
+!deploy/**/*.md
+converza_web/Converza_ai/.next
+**/.DS_Store
