@@ -38,6 +38,30 @@ APP_ADMIN_COMMANDS = APP_COMMANDS + [
 ]
 
 
+async def _delete_commands(api_base: str) -> None:
+    """Remove all slash commands for default scope and per-admin chat scopes."""
+    if not api_base:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(f"{api_base}/deleteMyCommands", json={})
+            for admin_id in admin_telegram_ids():
+                try:
+                    await client.post(
+                        f"{api_base}/deleteMyCommands",
+                        json={"scope": {"type": "chat", "chat_id": int(admin_id)}},
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to delete scoped commands for %s on %s: %s",
+                        admin_id,
+                        api_base,
+                        exc,
+                    )
+    except Exception as exc:
+        logger.warning("Failed to delete bot commands on %s: %s", api_base, exc)
+
+
 async def _set_commands(api_base: str, commands: list, admin_commands: list | None = None) -> None:
     if not api_base:
         return
@@ -62,7 +86,14 @@ async def _set_commands(api_base: str, commands: list, admin_commands: list | No
 
 async def set_bot_commands() -> None:
     await _set_commands(app_api_base(), APP_COMMANDS, APP_ADMIN_COMMANDS)
-    # Sales bot has no public DM commands — Business DMs only.
+    # Sales bot: Business DMs only — wipe any legacy command menu (admin, passport, etc.).
+    sales = sales_api_base()
+    if sales and sales != app_api_base():
+        await _delete_commands(sales)
+    elif sales == app_api_base():
+        logger.warning(
+            "TELEGRAM_BOT_TOKEN equals TELEGRAM_APP_BOT_TOKEN — use separate bots"
+        )
 
 
 def _validate_startup() -> None:
