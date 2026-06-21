@@ -34,7 +34,7 @@ async def get_conversation_history(
 
     result = (
         sb.table("messages")
-        .select("direction, content, sent_by, created_at")
+        .select("direction, role, content, sent_by, created_at")
         .eq("org_id", org_id)
         .eq("prospect_id", prospect_id)
         .order("created_at", desc=True)
@@ -46,8 +46,16 @@ async def get_conversation_history(
 
     history = []
     for row in rows:
-        role = "user" if row["direction"] == "inbound" else "assistant"
-        history.append({"role": role, "content": row["content"]})
+        direction = row.get("direction")
+        if direction == "inbound":
+            role = "user"
+        elif direction == "outbound":
+            role = "assistant"
+        else:
+            role = row.get("role") or "user"
+        content = row.get("content") or ""
+        if content:
+            history.append({"role": role, "content": content})
 
     return history
 

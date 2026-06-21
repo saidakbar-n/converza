@@ -29,7 +29,3 @@ mcp_servers:
         - get_brand_context
         - get_message_history
         - set_prospect_condition
-        - record_outbound_message
-        - telegram_send_text
-        - telegram_send_click_invoice
-        - get_org_stats

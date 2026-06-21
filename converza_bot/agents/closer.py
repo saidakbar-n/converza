@@ -5,12 +5,13 @@ Reasoning + MCP tool calls run inside Hermes. Python handles HITL and Telegram d
 """
 
 import json
+import logging
 import os
 
 import httpx
 from db.supabase_client import sb
 from agents.hitl import request_approval
-from agents.searcher import get_organization
+from agents.searcher import get_conversation_history, get_organization
 from services.messages import insert_message
 from services.org_resolver import lookup_business_connection_id
 from services.payments import (
@@ -24,6 +25,8 @@ from converza_agent.runtime import run_agent_json
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 HITL_ENABLED = os.getenv("HITL_ENABLED", "false").lower() == "true"
+
+logger = logging.getLogger(__name__)
 
 # Re-export for onboarding invoice tests
 from converza_mcp.telegram_actions import select_invoice_item, send_invoice  # noqa: E402
@@ -49,6 +52,14 @@ async def _resolve_business_connection_id(
     return lookup_business_connection_id(org_id)
 
 
+def _trim_brand_context(brand: dict) -> dict:
+    ctx = dict(brand or {})
+    notes = ctx.get("raw_notes")
+    if isinstance(notes, str) and len(notes) > 1500:
+        ctx["raw_notes"] = notes[:1500] + "…"
+    return ctx
+
+
 async def generate_reply(
     chat_id: int,
     prospect_id: str,
@@ -61,28 +72,44 @@ async def generate_reply(
     brand = org.get("brand_context", {})
     click_token = get_payment_provider_token(org)
     conn_id = await _resolve_business_connection_id(org_id, business_connection_id)
-    session_key = f"converza:closer:{org_id}:{prospect_id}"
+    conn_id = await _resolve_business_connection_id(org_id, business_connection_id)
+
+    history = await get_conversation_history(org_id, prospect_id, limit=8)
+    payments_enabled = is_configured_provider_token(click_token)
 
     payload = {
         "org_id": org_id,
         "prospect_id": prospect_id,
         "chat_id": chat_id,
         "inbound_text": inbound_text,
+        "brand_context": _trim_brand_context(brand),
+        "message_history": history,
+        "payments_enabled": payments_enabled,
     }
 
+    draft_json: dict | None = None
     try:
         draft_json = await run_agent_json(
             "dm-closer",
             [{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
-            session_key=session_key,
+            session_key=None,
             max_tokens=600,
         )
+    except Exception as exc:
+        logger.exception(
+            "Hermes dm-closer failed org_id=%s prospect_id=%s: %s",
+            org_id,
+            prospect_id,
+            exc,
+        )
+
+    if draft_json:
         draft = draft_json.get("reply", "").strip()
         condition = draft_json.get("client_condition", "cold")
         reason = draft_json.get("condition_reason", "")
         invoice_required = bool(draft_json.get("invoice_required"))
         invoice_tier = draft_json.get("invoice_tier")
-    except Exception:
+    else:
         draft = "Kechirasiz, men hozir javob bera olmayman."
         condition = "cold"
         reason = "hermes_error"

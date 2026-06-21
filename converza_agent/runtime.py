@@ -73,7 +73,11 @@ async def run_agent_json(
     client: HermesClient | None = None,
 ) -> dict:
     hermes = client or get_hermes_client()
-    system = _mcp_preamble() + load_skill_prompt(agent_id)
+    skill = load_skill_prompt(agent_id)
+    if agent_id == "dm-closer":
+        system = skill
+    else:
+        system = _mcp_preamble() + skill
     return await hermes.complete_json(
         messages,
         system=system,
