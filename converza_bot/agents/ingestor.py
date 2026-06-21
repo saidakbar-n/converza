@@ -12,10 +12,11 @@ Responsibilities:
 
 import logging
 
-from models.schemas import TelegramUpdate, MessageCreate
+from models.schemas import TelegramUpdate
 from db.supabase_client import sb
 from agents.closer import generate_reply
 from services.closer_readiness import assess_closer_readiness, readiness_label
+from services.messages import insert_message
 from services.org_resolver import resolve_org_id
 from services.prospects import ensure_conversation_id, get_or_create_prospect
 from services.supabase_errors import format_supabase_error
@@ -136,7 +137,7 @@ async def ingest_message(update: TelegramUpdate, raw: dict | None = None) -> Non
         )
         conversation_id = ensure_conversation_id(prospect_id, conversation_id)
 
-        inbound = MessageCreate(
+        insert_message(
             org_id=org_id,
             prospect_id=prospect_id,
             direction="inbound",
@@ -144,7 +145,6 @@ async def ingest_message(update: TelegramUpdate, raw: dict | None = None) -> Non
             sent_by="system",
             conversation_id=conversation_id,
         )
-        sb.table("messages").insert(inbound.model_dump()).execute()
 
         await generate_reply(
             chat_id=msg.chat.id,

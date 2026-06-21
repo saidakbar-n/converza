@@ -11,7 +11,7 @@ import httpx
 from db.supabase_client import sb
 from agents.hitl import request_approval
 from agents.searcher import get_organization
-from models.schemas import MessageCreate
+from services.messages import insert_message
 from services.org_resolver import lookup_business_connection_id
 from services.payments import (
     get_payment_provider_token,
@@ -134,7 +134,7 @@ async def generate_reply(
             )
         tg_resp.raise_for_status()
 
-    outbound = MessageCreate(
+    insert_message(
         org_id=org_id,
         prospect_id=prospect_id,
         direction="outbound",
@@ -143,4 +143,3 @@ async def generate_reply(
         agent_model=hermes_model(),
         conversation_id=conversation_id,
     )
-    sb.table("messages").insert(outbound.model_dump()).execute()

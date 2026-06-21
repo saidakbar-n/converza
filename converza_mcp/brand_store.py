@@ -121,6 +121,7 @@ def log_outbound_message(
             "sent_by": "ai",
             "agent_model": agent_model,
             "conversation_id": conversation_id,
+            "role": "assistant",
         }
     ).execute()
     return {"ok": True}

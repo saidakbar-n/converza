@@ -127,7 +127,12 @@ alter table messages
     add column if not exists content text,
     add column if not exists sent_by text not null default 'ai',
     add column if not exists agent_model text,
+    add column if not exists role text,
     add column if not exists created_at timestamptz not null default now();
+
+update messages
+set role = case when direction = 'inbound' then 'user' else 'assistant' end
+where role is null and direction is not null;
 
 create index if not exists idx_messages_org_prospect on messages (org_id, prospect_id);
 create index if not exists idx_messages_conversation on messages (conversation_id);
