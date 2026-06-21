@@ -24,7 +24,7 @@ HERMES_ENV="${HERMES_HOME}/.env"
 touch "${HERMES_ENV}"
 # Strip Telegram vars so Hermes does not long-poll @ConverzaSales_bot (causes pairing spam).
 sed -i '/^TELEGRAM_/d' "${HERMES_ENV}" 2>/dev/null || true
-for var in GOOGLE_API_KEY GEMINI_API_KEY ANTHROPIC_API_KEY OPENROUTER_API_KEY \
+for var in GOOGLE_API_KEY GEMINI_API_KEY GROQ_API_KEY ANTHROPIC_API_KEY OPENROUTER_API_KEY \
   SUPABASE_URL SUPABASE_SERVICE_KEY; do
   val="${!var:-}"
   if [[ -n "$val" ]]; then

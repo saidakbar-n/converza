@@ -55,6 +55,9 @@ for key in "${REQUIRED[@]}"; do
   fi
 done
 
+if [[ -n "${GROQ_API_KEY:-}" ]]; then
+  echo "  set: GROQ_API_KEY (Groq — preferred)"
+fi
 if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
   echo "  set: ANTHROPIC_API_KEY (Claude)"
 fi
@@ -62,8 +65,8 @@ if [[ -n "${GOOGLE_API_KEY:-}${GEMINI_API_KEY:-}" ]]; then
   echo "  set: GOOGLE_API_KEY / GEMINI_API_KEY (Gemini)"
 fi
 
-if [[ -z "${ANTHROPIC_API_KEY:-}" && -z "${GOOGLE_API_KEY:-}" && -z "${GEMINI_API_KEY:-}" && -z "${OPENROUTER_API_KEY:-}" ]]; then
-  echo "  MISSING: LLM provider (GOOGLE_API_KEY or ANTHROPIC_API_KEY)"
+if [[ -z "${GROQ_API_KEY:-}" && -z "${ANTHROPIC_API_KEY:-}" && -z "${GOOGLE_API_KEY:-}" && -z "${GEMINI_API_KEY:-}" && -z "${OPENROUTER_API_KEY:-}" ]]; then
+  echo "  MISSING: LLM provider (GROQ_API_KEY, GOOGLE_API_KEY, or ANTHROPIC_API_KEY)"
   MISSING=1
 fi
 if [[ "$MISSING" -eq 1 ]]; then

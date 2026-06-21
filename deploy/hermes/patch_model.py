@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Force Hermes config.yaml model block to match Converza env (gemini or anthropic)."""
+"""Patch Hermes config.yaml model + custom_providers from Converza env."""
 
 from __future__ import annotations
 
@@ -8,43 +8,93 @@ import re
 import sys
 from pathlib import Path
 
+GROQ_BASE = "https://api.groq.com/openai/v1"
+GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
-def resolve_provider() -> tuple[str, str] | None:
+
+def _pick_provider() -> tuple[str, str, str] | None:
+    """Return (model, provider, kind) where kind is groq|gemini|anthropic."""
     explicit = os.environ.get("CONVERZA_LLM_PROVIDER", "").strip().lower()
+    groq = os.environ.get("GROQ_API_KEY", "").strip()
     google = (os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY") or "").strip()
-    anthropic = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
+    anthropic = os.environ.get("ANTHROPIC_API_KEY", "").strip()
 
+    if explicit == "groq":
+        if not groq:
+            return None
+        model = os.environ.get("HERMES_GROQ_MODEL", GROQ_DEFAULT_MODEL)
+        return model, "custom:groq", "groq"
     if explicit == "anthropic":
         if not anthropic:
             return None
         model = os.environ.get("HERMES_ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
-        return model, "anthropic"
+        return model, "anthropic", "anthropic"
     if explicit == "gemini":
         if not google:
             return None
         model = os.environ.get("HERMES_GEMINI_MODEL") or os.environ.get("GEMINI_MODEL") or "gemini-2.0-flash"
-        return model, "gemini"
+        return model, "gemini", "gemini"
 
-    if google:
-        model = os.environ.get("HERMES_GEMINI_MODEL") or os.environ.get("GEMINI_MODEL") or "gemini-2.0-flash"
-        return model, "gemini"
+    # Auto-detect: prefer Groq when key present (Converza production default).
+    if groq:
+        model = os.environ.get("HERMES_GROQ_MODEL", GROQ_DEFAULT_MODEL)
+        return model, "custom:groq", "groq"
     if anthropic:
         model = os.environ.get("HERMES_ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
-        return model, "anthropic"
+        return model, "anthropic", "anthropic"
+    if google:
+        model = os.environ.get("HERMES_GEMINI_MODEL") or os.environ.get("GEMINI_MODEL") or "gemini-2.0-flash"
+        return model, "gemini", "gemini"
     return None
 
 
+def _replace_model_block(text: str, model: str, provider: str) -> str:
+    lines = text.splitlines(keepends=True)
+    out: list[str] = []
+    i = 0
+    replaced = False
+    while i < len(lines):
+        if lines[i].startswith("model:"):
+            out.append(f"model:\n  default: {model}\n  provider: {provider}\n")
+            replaced = True
+            i += 1
+            while i < len(lines) and (
+                lines[i].startswith("  ") or lines[i].strip() == "" or lines[i].lstrip().startswith("#")
+            ):
+                i += 1
+            continue
+        out.append(lines[i])
+        i += 1
+    if not replaced:
+        out.insert(0, f"model:\n  default: {model}\n  provider: {provider}\n\n")
+    return "".join(out)
+
+
 def patch_config(path: Path) -> None:
-    resolved = resolve_provider()
-    if not resolved or not path.exists():
+    picked = _pick_provider()
+    if not picked or not path.exists():
         return
-    model, provider = resolved
-    block = f"model:\n  default: {model}\n  provider: {provider}\n"
+    model, provider, kind = picked
     text = path.read_text(encoding="utf-8")
-    if re.search(r"(?m)^model:\n", text):
-        text = re.sub(r"(?m)^model:\n(?:  .+\n)+", block, text, count=1)
-    else:
-        text = block + "\n" + text
+
+    if kind == "groq":
+        groq_entry = (
+            "  - name: groq\n"
+            f"    base_url: {GROQ_BASE}\n"
+            "    key_env: GROQ_API_KEY\n"
+        )
+        if re.search(r"(?m)^custom_providers:\n", text):
+            if "name: groq" not in text:
+                text = re.sub(
+                    r"(?m)^custom_providers:\n",
+                    f"custom_providers:\n{groq_entry}",
+                    text,
+                    count=1,
+                )
+        else:
+            text = f"custom_providers:\n{groq_entry}\n" + text
+
+    text = _replace_model_block(text, model, provider)
     path.write_text(text, encoding="utf-8")
     print(f"Patched {path}: provider={provider} default={model}")
 

@@ -30,7 +30,13 @@ if [[ -z "$KEY" ]]; then
 fi
 
 echo "==> Hermes chat completion (minimal)"
-MODEL="${HERMES_GEMINI_MODEL:-${GEMINI_MODEL:-gemini-2.0-flash}}"
+if [[ -n "${GROQ_API_KEY:-}" ]] || [[ "${CONVERZA_LLM_PROVIDER:-}" == "groq" ]]; then
+  MODEL="${HERMES_GROQ_MODEL:-llama-3.3-70b-versatile}"
+elif [[ -n "${ANTHROPIC_API_KEY:-}" ]] || [[ "${CONVERZA_LLM_PROVIDER:-}" == "anthropic" ]]; then
+  MODEL="${HERMES_ANTHROPIC_MODEL:-claude-sonnet-4-20250514}"
+else
+  MODEL="${HERMES_GEMINI_MODEL:-${GEMINI_MODEL:-gemini-2.0-flash}}"
+fi
 BODY=$(python3 -c "import json; print(json.dumps({'model':'${MODEL}','messages':[{'role':'user','content':'Reply with exactly: AGENT_OK'}],'stream':False,'max_tokens':32,'temperature':0}))")
 
 HTTP=$(curl -s -w "%{http_code}" -o /tmp/hermes-test.json \
@@ -58,8 +64,8 @@ except (KeyError, IndexError, TypeError):
     sys.exit(1)
 print("  reply:", text[:200])
 if "AGENT_OK" not in text.upper() and "GEMINI_OK" not in text.upper():
-    if "404" in text or "failed" in text.lower():
-        print("  FAIL: LLM provider error — run ./scripts/diag-gemini.sh")
+    if "404" in text or "failed" in text.lower() or "quota" in text.lower():
+        print("  FAIL: LLM provider error — run ./scripts/diag-groq.sh or ./scripts/diag-gemini.sh")
         sys.exit(1)
     print("  WARN: unexpected wording but Hermes returned text")
 print("  OK  Hermes LLM responding")

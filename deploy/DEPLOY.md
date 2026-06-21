@@ -40,7 +40,9 @@ From your laptop:
 | `TELEGRAM_APP_BOT_USERNAME` | `ConverzaApp_bot` |
 | `TELEGRAM_WEBHOOK_SECRET` | random hex (webhook auth) |
 | `HERMES_API_KEY` | same as `API_SERVER_KEY` |
-| `GOOGLE_API_KEY` | **Gemini** via [AI Studio](https://aistudio.google.com/apikey) (or `ANTHROPIC_API_KEY` for Claude) |
+| `GROQ_API_KEY` | **Groq** (recommended) — `llama-3.3-70b-versatile` via Hermes `custom_providers` |
+| `GOOGLE_API_KEY` | Gemini via [AI Studio](https://aistudio.google.com/apikey) (optional fallback) |
+| `ANTHROPIC_API_KEY` | Claude (optional fallback) |
 | `CONVERZA_SUBSCRIPTION_PROVIDER_TOKEN` | Click on **App bot** (BotFather → Payments) |
 | `SUBSCRIPTION_REQUIRED` | `true` |
 | `JWT_SECRET` | web session signing |
