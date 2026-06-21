@@ -90,6 +90,17 @@ alter table prospects
     add column if not exists metadata jsonb default '{}'::jsonb,
     add column if not exists updated_at timestamptz not null default now();
 
+-- Legacy column: keep tg_user_id in sync with external_id (Telegram customer id).
+update prospects
+set external_id = tg_user_id::text
+where external_id is null and tg_user_id is not null;
+
+update prospects
+set tg_user_id = external_id::bigint
+where tg_user_id is null
+  and external_id is not null
+  and external_id ~ '^[0-9]+$';
+
 create index if not exists idx_prospects_org_id on prospects (org_id);
 
 create table if not exists messages (
