@@ -6,14 +6,14 @@ services:
     env_file: /etc/converza/.env
     network_mode: host
     restart: unless-stopped
-    volumes:
-      - hermes_data:/opt/hermes
+    # Do NOT mount over /opt/hermes — that hides the Hermes binary from the image.
+    # Config + skills are baked/rebuilt in entrypoint on first start.
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://127.0.0.1:8642/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 120s
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 300s
 
   bot:
     build:
@@ -46,5 +46,4 @@ services:
       retries: 3
       start_period: 45s
 
-volumes:
-  hermes_data:
+# hermes_data volume removed — mounting /opt/hermes hid the Hermes install (see hermes service)

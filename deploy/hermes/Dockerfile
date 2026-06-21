@@ -17,8 +17,7 @@ COPY converza_mcp /app/converza_mcp
 COPY deploy/hermes/skills /app/hermes-skills
 COPY deploy/hermes/config.yaml.template /app/hermes-config.yaml.template
 
-RUN curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --no-onboard \
-    || echo "Hermes install deferred to container start"
+RUN curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --no-onboard
 
 COPY deploy/hermes/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
