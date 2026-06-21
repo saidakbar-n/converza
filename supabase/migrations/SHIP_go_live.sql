@@ -80,6 +80,16 @@ create table if not exists prospects (
     unique (org_id, platform, external_id)
 );
 
+-- Older live DBs may have prospects without DM Closer columns.
+alter table prospects
+    add column if not exists platform text not null default 'telegram',
+    add column if not exists external_id text,
+    add column if not exists conversation_id uuid,
+    add column if not exists client_condition text default 'cold',
+    add column if not exists condition_reason text,
+    add column if not exists metadata jsonb default '{}'::jsonb,
+    add column if not exists updated_at timestamptz not null default now();
+
 create index if not exists idx_prospects_org_id on prospects (org_id);
 
 create table if not exists messages (
@@ -93,6 +103,16 @@ create table if not exists messages (
     agent_model text,
     created_at timestamptz not null default now()
 );
+
+-- Older live DBs may have messages without conversation_id / agent_model.
+alter table messages
+    add column if not exists prospect_id uuid references prospects (id) on delete set null,
+    add column if not exists conversation_id uuid,
+    add column if not exists direction text default 'inbound',
+    add column if not exists content text,
+    add column if not exists sent_by text not null default 'ai',
+    add column if not exists agent_model text,
+    add column if not exists created_at timestamptz not null default now();
 
 create index if not exists idx_messages_org_prospect on messages (org_id, prospect_id);
 create index if not exists idx_messages_conversation on messages (conversation_id);
