@@ -21,22 +21,34 @@ jobs:
       - name: Install web dependencies
         run: pip install -r converza_web/Converza_ai/requirements.txt
 
+      - name: Run unit tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/converza_bot
+          HERMES_API_KEY: test
+        run: |
+          python -m pytest converza_bot/tests/test_payments.py converza_bot/tests/test_hermes_client.py converza_bot/tests/test_daily_report.py converza_bot/tests/test_closer_readiness.py -q
+
       - name: Import bot main
         working-directory: converza_bot
         env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/converza_bot
           SUPABASE_URL: https://example.supabase.co
           SUPABASE_SERVICE_KEY: test_key
-          GROQ_API_KEY: test
+          HERMES_API_KEY: test
           TELEGRAM_BOT_TOKEN: test
+          TELEGRAM_APP_BOT_TOKEN: test_app
+          WEB_APP_URL: http://localhost:8001
         run: python -c "import main; print('bot ok')"
 
       - name: Import web main
         working-directory: converza_web/Converza_ai
         env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/converza_web/Converza_ai
           SUPABASE_URL: https://example.supabase.co
           SUPABASE_SERVICE_KEY: test_key
-          TELEGRAM_BOT_TOKEN: test
+          TELEGRAM_APP_BOT_TOKEN: test_app
           JWT_SECRET: test_secret
+          HERMES_API_KEY: test
         run: python -c "import main; print('web ok')"
 
       - name: Migrations exist
@@ -45,11 +57,13 @@ jobs:
           test -f supabase/migrations/003_align_live_schema.sql
           test -f supabase/migrations/004_access_requests.sql
           test -f supabase/migrations/005_brand_passport_columns.sql
+          test -f supabase/migrations/006_org_subscriptions.sql
           echo "migrations ok"
 
       - name: Deploy artifacts exist
         run: |
           test -f docker-compose.prod.yml
           test -f deploy/DEPLOY.md
+          test -f deploy/hermes/Dockerfile
           test -f converza_web/Converza_ai/Dockerfile
           echo "deploy ok"

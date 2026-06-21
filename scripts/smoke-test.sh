@@ -17,8 +17,23 @@ if echo "$READY" | grep -q '"not_ready"'; then
   echo "WARN: web /ready reports not_ready (may be OK in dev without all keys)"
 fi
 
-echo "==> Auth config: $BASE/api/auth/config"
-curl -fsS "$BASE/api/auth/config" | grep -q 'bot_username'
+echo "==> Auth config (two-bot)"
+AUTH=$(curl -fsS "$BASE/api/auth/config")
+echo "$AUTH"
+echo "$AUTH" | grep -q 'bot_username' || { echo "ERROR: bot_username missing" >&2; exit 1; }
+if [[ "$BASE" == https://getconverza.com* ]]; then
+  echo "$AUTH" | grep -q 'ConverzaApp_bot' || echo "WARN: production should use ConverzaApp_bot for login widget"
+fi
+
+echo "==> Webhook app route"
+APP_WH=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/webhook/app" \
+  -H "Content-Type: application/json" \
+  -d '{"update_id":999999002}' || echo "000")
+if [[ "$APP_WH" == "502" || "$APP_WH" == "000" ]]; then
+  echo "WARN: POST /webhook/app → $APP_WH"
+else
+  echo "POST /webhook/app → $APP_WH (OK if not 502)"
+fi
 
 echo "==> Protected route returns 401 without token"
 STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/dm-closer/onboard" \

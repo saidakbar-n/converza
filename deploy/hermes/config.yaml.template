@@ -1,0 +1,27 @@
+# Hermes gateway + Converza MCP
+#
+# LLM provider — set GOOGLE_API_KEY in env and use gemini (see deploy/DEPLOY.md).
+# Override model via HERMES_MODEL / config after first boot if needed.
+model:
+  default: gemini-2.5-flash
+  provider: gemini
+  base_url: https://generativelanguage.googleapis.com/v1beta
+
+mcp_servers:
+  converza:
+    command: python3
+    args: ["-u", "/app/converza_mcp/server.py"]
+    env:
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: "/app"
+    timeout: 120
+    connect_timeout: 60
+    tools:
+      include:
+        - get_brand_context
+        - get_message_history
+        - set_prospect_condition
+        - record_outbound_message
+        - telegram_send_text
+        - telegram_send_click_invoice
+        - get_org_stats

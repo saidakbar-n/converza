@@ -1,53 +1,61 @@
 # Converza v1 — Pilot checklist
 
-Run through this with a real business owner before calling v1 shipped.
+Run before calling v1 shipped. Automated checks first, then manual Telegram steps.
 
-## Automated pre-checks (run first)
+## 0. Automated (laptop)
 
 ```bash
-chmod +x scripts/pilot-check.sh scripts/smoke-test.sh
-scripts/pilot-check.sh https://yourdomain.com
+chmod +x scripts/verify-production.sh scripts/go-live.sh scripts/pilot-check.sh
+./scripts/verify-production.sh https://getconverza.com
 ```
 
-This verifies health endpoints, auth gates, bot imports (`owner_org_id`), unit tests, and webhook proxy error surfacing. It does **not** replace the manual Telegram steps below.
+**Must pass:**
 
-## Owner setup
+- [ ] `/api/auth/config` → `bot_username: ConverzaApp_bot` + `sales_bot_username`
+- [ ] `/webhook/telegram` and `/webhook/app` not 502
+- [ ] `getWebhookInfo` URLs point to getconverza.com (run `scripts/verify-webhooks.sh` on VPS)
 
-- [ ] Owner submits access request (biznes nomi, muammo/og'riq nuqtasi, telefon, @username)
-- [ ] Admin sees business name, pain point, phone, and sent date on `/admin` or bot `/pending`
-- [ ] Admin approves request at `https://yourdomain.com/admin` or bot `/pending` → ✅ Tasdiqlash
-- [ ] Owner opens `https://yourdomain.com` and logs in via Telegram widget (after approval)
-- [ ] Owner fills and saves brand passport (pricing, FAQ, objections)
-- [ ] Web shows metrics updated after save
-- [ ] Owner connects bot: **Telegram → Settings → Business → Chatbots → @ConverzaSales_bot**
-- [ ] Web connection panel shows **"Biznes ulanishi faol"**
-- [ ] Bot `/status` shows passport name + business connection active
+## 1. Supabase
 
-## Co-Pilot (owner strategy tool)
+- [ ] `SHIP_go_live.sql` applied (access_requests, org_subscriptions exist)
+- [ ] Backups enabled in Supabase dashboard
+
+## 2. Owner setup (App bot + web)
+
+- [ ] Owner submits access request on getconverza.com
+- [ ] Admin approves at `/admin` or @ConverzaApp_bot `/pending` → ✅
+- [ ] Owner logs in via **Telegram widget (@ConverzaApp_bot)**
+- [ ] Owner saves brand passport (pricing, FAQ, objections)
+- [ ] @ConverzaApp_bot `/subscribe` → Click payment → subscription active (web panel shows obuna faol)
+- [ ] @ConverzaApp_bot `/report` → kunlik hisobot received
+
+## 3. Sales bot (Business DM)
+
+- [ ] Owner connects **@ConverzaSales_bot**: Telegram → Business → Chatbots
+- [ ] Web panel: **Biznes ulanishi faol**
+- [ ] @ConverzaApp_bot `/status` → subscription + passport + Business all ✅
+
+## 4. Customer sales loop (critical)
+
+DM Closer requires: active subscription + Business connection + passport (name, offer, pricing).
+
+- [ ] Second account messages **owner's business account** (not bot DM)
+- [ ] DM Closer replies within ~30s using passport context
+- [ ] Optional: client Click invoice (org `click_token` in passport)
+- [ ] Non-text message → Uzbek fallback
+
+## 5. Co-Pilot
 
 - [ ] Co-Pilot tab unlocked after passport save
-- [ ] Send Uzbek message → streamed reply from KIE
-- [ ] Bot `/profile` shows same passport as web
+- [ ] Uzbek message → streamed Hermes reply
 
-## Customer sales loop (critical)
+## 6. Security & ops
 
-DM Closer only replies when **both** are true: Telegram Business connected (`business_connection_id` set) and brand passport saved (name, offer, pricing).
+- [ ] Leaked bot tokens rotated ([ROTATE_SECRETS.md](ROTATE_SECRETS.md))
+- [ ] `TELEGRAM_WEBHOOK_SECRET` set on VPS
+- [ ] Unauthenticated API → 401
+- [ ] Hermes container healthy: `curl http://127.0.0.1:8642/health` on VPS
 
-- [ ] Second Telegram account messages **owner's business account** (not the bot DM)
-- [ ] DM Closer replies in that chat within ~30 seconds
-- [ ] Reply uses brand passport context (mentions offer/pricing appropriately)
-- [ ] Optional: invoice flow works with configured Click token
-- [ ] Non-text customer message gets Uzbek fallback asking for text
+## 7. Nightly report
 
-## Security & ops
-
-- [ ] Unauthenticated API call returns 401
-- [ ] `scripts/smoke-test.sh https://yourdomain.com` passes
-- [ ] `getWebhookInfo` shows no recent errors
-- [ ] `/test_invoice` disabled in production bot commands
-
-## Database
-
-- [ ] Cloud Supabase migration `003_align_live_schema.sql` applied
-- [ ] `organizations.business_connection_id` populated after owner connects Business
-- [ ] Supabase backups enabled
+- [ ] Cron 23:59 Asia/Tashkent sends 📊 KUNLIK HISOBOT to subscribed orgs (or test `/report`)

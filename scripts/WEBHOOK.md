@@ -36,17 +36,30 @@ The **webhook** (above) is how Telegram delivers updates to the bot. The
 Telegram Login button.
 
 1. Open [@BotFather](https://t.me/BotFather) → `/mybots` → select
-   `@ConverzaSales_bot`.
+   **`@ConverzaApp_bot`** (not the sales bot).
 2. **Login widget domain:** `Bot Settings` → `Domain` → `/setdomain`, then send
-   the public web domain (e.g. `app.example.com` or the ngrok host). This must
-   match the domain serving the Telegram Login widget, or login is rejected.
-3. **Business mode (per owner):** each business owner connects the bot to their
-   account via Telegram → `Settings` → `Telegram Business` → `Chatbots` → add
-   `@ConverzaSales_bot`. This is done by each owner, not in BotFather.
-4. The webhook itself is NOT set in BotFather — use `register_webhook.sh set`.
-5. **Production:** set `TELEGRAM_WEBHOOK_SECRET` in `.env` before running
-   `register_webhook.sh set` — the script passes it as `secret_token` to Telegram.
-   The same value must be on both bot and web services.
+   `getconverza.com` (no `https://`). This must match the site serving the
+   Telegram Login widget — the web app uses `@ConverzaApp_bot` for login.
+3. **Click payments:** on `@ConverzaApp_bot` → `Payments` → Click (Converza
+   subscription via `/subscribe`). End-customer invoices use each org's token on
+   `@ConverzaSales_bot` (optional).
+4. **Business mode (per owner):** Telegram → `Settings` → `Telegram Business` →
+   `Chatbots` → add **`@ConverzaSales_bot`**. Done by each owner, not BotFather.
+5. Webhooks are set via script (not BotFather) — both bots, one domain:
+
+```bash
+WEB_APP_URL=https://getconverza.com \
+TELEGRAM_WEBHOOK_SECRET=your_secret \
+TELEGRAM_BOT_TOKEN=... \
+TELEGRAM_APP_BOT_TOKEN=... \
+./scripts/set_telegram_webhooks.sh
+```
+
+   - Sales: `https://getconverza.com/webhook/telegram`
+   - App:   `https://getconverza.com/webhook/app`
+
+6. **Production:** set `TELEGRAM_WEBHOOK_SECRET` in `/etc/converza/.env` before
+   running the webhook script.
 
 ## Production domain
 
