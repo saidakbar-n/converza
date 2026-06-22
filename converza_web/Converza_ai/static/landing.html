@@ -23,12 +23,14 @@
         <a href="#proof">Infrastructure</a>
         <a href="#how-it-works">Protocol</a>
         <a href="#benefits">Capabilities</a>
-        <a href="/app">Dashboard</a>
       </div>
-      <button type="button" class="btn-pilot" data-book-pilot>
-        Book Pilot
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </button>
+      <div class="landing-nav-actions">
+        <button type="button" class="btn-nav-signin" data-sign-in>Sign in</button>
+        <button type="button" class="btn-pilot" data-book-pilot>
+          Book Pilot
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
     </nav>
 
     <!-- Hero -->
@@ -48,7 +50,7 @@
           </p>
           <div>
             <button type="button" class="btn-dark" data-book-pilot>
-              <span>Book Your $500 Pilot</span>
+              <span>Book Your Pilot</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </button>
             <div class="hero-checks">
@@ -169,7 +171,7 @@
         <div class="protocol-body">
           <div class="phase">SYSTEM.PHASE_02</div>
           <h3>Review Terminal</h3>
-          <p>Configure your DM Closer rules in the dashboard. Approve response templates, set payment tiers, and tune objection handlers before going live.</p>
+          <p>Configure your DM Closer rules in your workspace. Approve response templates, set payment tiers, and tune objection handlers before going live.</p>
         </div>
       </article>
 
@@ -197,7 +199,7 @@
           Secure Your Spot
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
-        <div class="pilot-footnote">Flat $500 pilot. Cancel anytime.</div>
+        <div class="pilot-footnote">Cancel anytime</div>
       </div>
     </section>
 
@@ -213,13 +215,14 @@
           <span class="dot"></span>
           System Operational
         </div>
-        <p class="landing-footer-copy">&copy; <span id="year"></span> Converza Systems &middot; <a href="/app">Dashboard</a></p>
+        <p class="landing-footer-copy">&copy; <span id="year"></span> Converza Systems</p>
       </div>
     </footer>
   </main>
 
   <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
   <script src="/js/pilot-modal.js"></script>
+  <script src="/js/landing-auth.js"></script>
   <script src="/js/landing.js"></script>
 </body>
 </html>

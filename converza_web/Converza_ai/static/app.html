@@ -1263,91 +1263,8 @@
         <button class="tab" data-view="copilot" id="copilot-tab-legacy" disabled>Co-Pilot</button>
       </div>
 
-      <section class="content view active intro-active" id="setup-view">
-        <div id="setup-blocked">
-          <div class="intro-funnel">
-            <div class="funnel-track" id="funnel-track">
-              <div class="funnel-step done" data-step="1"><span class="num">1</span> Kirish</div>
-              <div class="funnel-step" data-step="2"><span class="num">2</span> Ariza</div>
-              <div class="funnel-step" data-step="3"><span class="num">3</span> Tasdiq</div>
-              <div class="funnel-step" data-step="4"><span class="num">4</span> Telegram</div>
-              <div class="funnel-step" data-step="5"><span class="num">5</span> Pasport</div>
-            </div>
-
-            <section class="intro-hero">
-              <div class="system-pill"><span class="pulse"></span> Faol</div>
-              <h1 class="intro-title">Converza <em>DM Closer</em></h1>
-              <p class="intro-sub">Telegram'da sotuv va marketing uchun AI tizim.</p>
-            </section>
-
-            <section class="auth-hub" id="auth-hub">
-              <div class="auth-card" id="auth-card">
-                <div class="auth-card-head" id="auth-card-head">
-                  <h2 id="auth-card-title">Kirish</h2>
-                  <p id="auth-card-subtitle">Yangi foydalanuvchi — ariza. Tasdiqlangan — @ConverzaApp_bot orqali kirish.</p>
-                </div>
-                <div class="auth-tabs" id="auth-tabs" hidden>
-                  <button type="button" class="auth-tab active" data-auth-tab="request">Yangi ariza</button>
-                  <button type="button" class="auth-tab" data-auth-tab="returning">Telegram kirish</button>
-                </div>
-                <div id="access-request-panel">
-                  <form class="access-form" id="access-request-form">
-                    <label for="req-name">To'liq ismingiz *</label>
-                    <input id="req-name" name="full_name" required minlength="2" placeholder="Ali Valiyev" />
-                    <label for="req-business">Biznes nomi *</label>
-                    <input id="req-business" name="business_name" required minlength="2" placeholder="Go'zallik saloni Nafis" />
-                    <label for="req-message">Asosiy muammo *</label>
-                    <textarea id="req-message" name="message" required minlength="30" maxlength="500" placeholder="Kechqurun xabarlarga javob bera olmayman, mijozlar ketadi..."></textarea>
-                    <label for="req-contact">Telefon raqami *</label>
-                    <input id="req-contact" name="contact" type="tel" required placeholder="+998901234567" />
-                    <label for="req-telegram">Telegram @username *</label>
-                    <input id="req-telegram" name="telegram_username" required placeholder="@username" />
-                    <button type="submit" class="primary">Arizani yuborish</button>
-                  </form>
-                  <p class="auth-hint" id="access-form-hint">@username login bilan bir xil bo'lsin.</p>
-                  <p class="auth-switch-link" id="access-to-login-link">
-                    Tasdiqlanganmisiz?
-                    <button type="button" id="goto-returning-login">Telegram kirish</button>
-                  </p>
-                </div>
-                <div class="access-status" id="access-pending-panel" hidden>
-                  <strong>Kutilmoqda</strong>
-                  <p>Admin tasdiqlagach Telegram ochiladi.</p>
-                  <button type="button" id="refresh-access-btn">Yangilash</button>
-                </div>
-                <div class="access-status" id="access-rejected-panel" hidden>
-                  <strong>Rad etildi</strong>
-                  <p id="access-rejected-note">Qayta urinishingiz mumkin.</p>
-                  <button type="button" id="retry-access-btn">Yangi ariza</button>
-                </div>
-                <div id="telegram-login-section" hidden>
-                  <p id="telegram-login-copy">Telegram orqali kiring.</p>
-                  <div id="telegram-login"></div>
-                  <p class="auth-hint">Tugma ko'rinmasa — BotFather'da domen tekshiring.</p>
-                  <p class="auth-switch-link" id="login-to-request-link" hidden>
-                    Hali yo'qsiz?
-                    <button type="button" id="goto-access-request">Ariza yuborish</button>
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            <section class="intro-points" aria-label="Asosiy imkoniyatlar">
-              <article><strong>24/7 DM</strong><span>Mijoz xabarlariga javob</span></article>
-              <article><strong>Click</strong><span>Hisob-faktura va to'lov</span></article>
-              <article><strong>Brend pasporti</strong><span>Bitta manba — barcha agentlar</span></article>
-            </section>
-
-            <section class="funnel-track" id="funnel-footer">
-              <div class="funnel-cta-bar" style="margin-left:0;width:100%;justify-content:space-between;">
-                <p id="funnel-footer-text">Boshlash uchun ariza yoki Telegram kirish.</p>
-                <button type="button" class="funnel-cta" id="funnel-footer-btn">Boshlash</button>
-              </div>
-            </section>
-          </div>
-        </div>
-
-        <div id="passport-workspace" hidden>
+      <section class="content view active" id="setup-view">
+        <div id="passport-workspace">
         <div class="headline">
           <div class="hero">
             <h2>Brend pasporti</h2>
@@ -1509,14 +1426,12 @@
 
   <script>
     const AUTH_STORAGE_KEY = "converza_auth";
-    const ACCESS_REQUEST_KEY = "converza_access_request_id";
     const state = {
       saved: false,
       orgId: null,
       token: null,
       user: null,
       brandId: null,
-      accessMode: "form",
       copilotMode: "chat",
       conversationId: null,
       conversationHistory: [],
@@ -1604,308 +1519,24 @@
       }).filter(item => Object.values(item).some(Boolean));
     }
 
-    function showAccessPanel(mode) {
-      state.accessMode = mode;
-      const showTabs = mode === "form" || mode === "returning";
-      const showForm = mode === "form";
-      const showLogin = mode === "login" || mode === "approved" || mode === "returning";
-
-      document.getElementById("auth-tabs").hidden = !showTabs;
-      document.getElementById("access-request-panel").hidden = !showForm;
-      document.getElementById("access-pending-panel").hidden = mode !== "pending";
-      document.getElementById("access-rejected-panel").hidden = mode !== "rejected";
-      document.getElementById("telegram-login-section").hidden = !showLogin;
-
-      const headWrap = document.getElementById("auth-card-head");
-      if (headWrap) headWrap.hidden = mode === "pending" || mode === "rejected";
-
-      const loginCopy = document.getElementById("telegram-login-copy");
-      const backToRequest = document.getElementById("login-to-request-link");
-      if (loginCopy) {
-        loginCopy.textContent = mode === "returning"
-          ? "Tasdiqlangan hisob — Telegram orqali kiring."
-          : "Telegram orqali kiring.";
-      }
-      if (backToRequest) backToRequest.hidden = mode !== "returning";
-
-      document.querySelectorAll(".auth-tab").forEach(tab => {
-        const active = mode === "returning"
-          ? tab.dataset.authTab === "returning"
-          : tab.dataset.authTab === "request";
-        tab.classList.toggle("active", active);
-      });
-
-      if (showLogin) {
-        mountTelegramWidget();
-      } else {
-        document.getElementById("telegram-login").innerHTML = "";
-      }
-
-      updateSetupVisibility();
-      updateFunnelState();
-    }
-
-    function showReturningLogin() {
-      showAccessPanel("returning");
-      statusText.textContent = "Telegram kirish";
-      statusDot.style.background = "var(--blue)";
-    }
-
-    function showAccessRequestForm() {
-      showAccessPanel("form");
-      statusText.textContent = "Kirish";
-      statusDot.style.background = "var(--amber)";
-    }
-
-    function highlightAuthCard() {
-      const card = document.getElementById("auth-card");
-      card.classList.add("highlight-pulse");
-      window.setTimeout(() => card.classList.remove("highlight-pulse"), 2200);
-    }
-
-    function scrollToAuth(focusId) {
-      const hub = document.getElementById("auth-hub");
-      hub.scrollIntoView({ behavior: "smooth", block: "center" });
-      highlightAuthCard();
-      if (focusId) {
-        const el = document.getElementById(focusId);
-        if (el) window.setTimeout(() => el.focus(), 400);
-      }
-    }
-
-    function funnelStepForMode(mode) {
-      if (mode === "pending") return 3;
-      if (mode === "rejected") return 2;
-      if (mode === "returning" || mode === "login" || mode === "approved") return 4;
-      return 2;
-    }
-
-    function updateFunnelState() {
-      const activeStep = funnelStepForMode(state.accessMode);
-      document.querySelectorAll(".funnel-step").forEach(step => {
-        const n = Number(step.dataset.step);
-        step.classList.toggle("done", n < activeStep);
-        step.classList.toggle("active", n === activeStep);
-      });
-
-      const headCopy = {
-        form: {
-          title: "Kirish",
-          subtitle: "Yangi — ariza. Tasdiqlangan — Telegram."
-        },
-        returning: {
-          title: "Telegram kirish",
-          subtitle: "Tasdiqlangan hisobingiz bilan kiring."
-        },
-        pending: {
-          title: "Kutilmoqda",
-          subtitle: "Admin tasdiqlaguncha kuting."
-        },
-        rejected: {
-          title: "Rad etildi",
-          subtitle: "Yangi ariza yuborishingiz mumkin."
-        },
-        approved: {
-          title: "Tasdiqlandi",
-          subtitle: "Telegram orqali kiring."
-        },
-        login: {
-          title: "Tasdiqlandi",
-          subtitle: "Telegram orqali kiring."
-        }
-      };
-
-      const footerCopy = {
-        form: { footer: "Ariza yoki Telegram kirish.", btn: "Forma", action: "request" },
-        returning: { footer: "Telegram orqali davom eting.", btn: "Telegram", action: "returning" },
-        pending: { footer: "Tasdiq kutilmoqda.", btn: "Yangilash", action: "refresh" },
-        rejected: { footer: "Yangi ariza yuboring.", btn: "Ariza", action: "retry" },
-        approved: { footer: "Telegram orqali kiring.", btn: "Telegram", action: "login" },
-        login: { footer: "Telegram orqali kiring.", btn: "Telegram", action: "login" }
-      };
-
-      const mode = state.accessMode === "approved" ? "approved" : state.accessMode;
-      const head = headCopy[mode] || headCopy.form;
-      const foot = footerCopy[mode] || footerCopy.form;
-
-      const titleEl = document.getElementById("auth-card-title");
-      const subtitleEl = document.getElementById("auth-card-subtitle");
-      if (titleEl) titleEl.textContent = head.title;
-      if (subtitleEl) subtitleEl.textContent = head.subtitle;
-
-      const headWrap = document.getElementById("auth-card-head");
-      if (headWrap) headWrap.hidden = mode === "pending" || mode === "rejected";
-
-      const footerText = document.getElementById("funnel-footer-text");
-      const footerBtn = document.getElementById("funnel-footer-btn");
-      if (footerText) footerText.textContent = foot.footer;
-      if (footerBtn) {
-        footerBtn.textContent = foot.btn;
-        footerBtn.dataset.action = foot.action;
-      }
-    }
-
-    function handleFunnelAction(action) {
-      if (action === "refresh") {
-        refreshAccessStatus();
-        scrollToAuth();
-        return;
-      }
-      if (action === "retry") {
-        showAccessPanel("form");
-        updateFunnelState();
-        scrollToAuth("req-name");
-        return;
-      }
-      if (action === "login" || action === "returning") {
-        showReturningLogin();
-        scrollToAuth();
-        return;
-      }
-      scrollToAuth("req-name");
-    }
-
-    function updateSetupVisibility() {
-      const workspace = document.getElementById("passport-workspace");
-      const blocked = document.getElementById("setup-blocked");
-      const setupView = document.getElementById("setup-view");
-      if (state.orgId) {
-        workspace.hidden = false;
-        blocked.hidden = true;
-        setupView.classList.remove("intro-active");
-        return;
-      }
-      workspace.hidden = true;
-      blocked.hidden = false;
-      setupView.classList.add("intro-active");
-      updateFunnelState();
-    }
-
-    async function refreshAccessStatus() {
-      const requestId = localStorage.getItem(ACCESS_REQUEST_KEY);
-      if (!requestId) {
-        showAccessRequestForm();
-        return;
-      }
-      try {
-        const response = await fetch(`/api/access-request/${requestId}`);
-        if (!response.ok) {
-          localStorage.removeItem(ACCESS_REQUEST_KEY);
-          showAccessRequestForm();
-          return;
-        }
-        const data = await response.json();
-        if (data.status === "approved") {
-          state.accessMode = "approved";
-          showAccessPanel("login");
-          await mountTelegramWidget();
-          statusText.textContent = "Tasdiqlandi — Telegram";
-          statusDot.style.background = "var(--green)";
-          updateSetupVisibility();
-          return;
-        }
-        if (data.status === "rejected") {
-          showAccessPanel("rejected");
-          const note = document.getElementById("access-rejected-note");
-          note.textContent = data.review_note
-            ? `Sabab: ${data.review_note}`
-            : "Qayta urinib ko'rishingiz mumkin.";
-          statusText.textContent = "Rad etildi";
-          statusDot.style.background = "var(--red)";
-          return;
-        }
-        showAccessPanel("pending");
-        statusText.textContent = "Kutilmoqda";
-        statusDot.style.background = "var(--amber)";
-      } catch (_) {
-        showAccessPanel("pending");
-      }
-    }
-
-    function validateAccessForm(fd) {
-      const message = String(fd.get("message") || "").trim();
-      const phone = String(fd.get("contact") || "").replace(/\D/g, "");
-      const username = String(fd.get("telegram_username") || "").trim().replace(/^@/, "");
-      if (message.length < 30) {
-        return "Muammoingizni kamida 30 belgi bilan yozing.";
-      }
-      if (phone.length < 9) {
-        return "To'g'ri telefon raqamini kiriting.";
-      }
-      if (username.length < 3) {
-        return "Telegram @username kiriting.";
-      }
-      return null;
-    }
-
-    async function submitAccessRequest(event) {
-      event.preventDefault();
-      const fd = new FormData(event.target);
-      const hint = document.getElementById("access-form-hint");
-      const clientError = validateAccessForm(fd);
-      if (clientError) {
-        hint.textContent = clientError;
-        return;
-      }
-      hint.textContent = "Yuborilmoqda...";
-      try {
-        const response = await fetch("/api/access-request", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            full_name: String(fd.get("full_name")).trim(),
-            business_name: String(fd.get("business_name")).trim(),
-            telegram_username: String(fd.get("telegram_username")).trim(),
-            contact: String(fd.get("contact")).trim(),
-            message: String(fd.get("message")).trim()
-          })
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(parseApiError(result, response.statusText));
-        localStorage.setItem(ACCESS_REQUEST_KEY, result.request_id);
-        event.target.reset();
-        hint.textContent = "";
-        await refreshAccessStatus();
-      } catch (error) {
-        hint.textContent = error.message;
-      }
-    }
-
     function setAuthenticated(user, orgId, token) {
       state.user = user;
       state.orgId = orgId;
       state.token = token || null;
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user, orgId, token: state.token }));
-      showAccessPanel("login");
-      document.getElementById("telegram-login-section").hidden = true;
-      document.getElementById("access-request-panel").hidden = true;
-      document.getElementById("access-pending-panel").hidden = true;
-      document.getElementById("access-rejected-panel").hidden = true;
-      const authUser = document.getElementById("auth-user");
-      authUser.classList.add("visible");
+      document.getElementById("auth-user").classList.add("visible");
       const label = user.username ? `@${user.username}` : user.first_name;
       document.getElementById("auth-label").textContent = `${label} sifatida kirdingiz`;
       document.getElementById("org-id-label").textContent = orgId;
       statusText.textContent = state.saved ? "Saqlangan" : "Kirildi";
       statusDot.style.background = state.saved ? "var(--green)" : "var(--amber)";
       document.getElementById("connection-panel").hidden = false;
-      updateSetupVisibility();
       loadConnectionStatus();
     }
 
     function clearAuth() {
-      state.user = null;
-      state.orgId = null;
-      state.token = null;
-      state.saved = false;
-      state.brandId = null;
       localStorage.removeItem(AUTH_STORAGE_KEY);
-      document.getElementById("auth-user").classList.remove("visible");
-      document.getElementById("org-id-label").textContent = "kirilmagan";
-      enableCopilotTabs(false);
-      document.getElementById("connection-panel").hidden = true;
-      showReturningLogin();
-      updateSetupVisibility();
+      window.location.href = "/";
     }
 
     async function restoreSession() {
@@ -1979,59 +1610,19 @@
       }
     }
 
-    async function mountTelegramWidget() {
-      const container = document.getElementById("telegram-login");
-      container.innerHTML = "";
+    async function loadAuthConfig() {
       try {
         const config = await fetch("/api/auth/config").then(r => r.json());
-        const hint = document.getElementById("bot-username-hint");
         const salesBot = config.sales_bot_username || "ConverzaSales_bot";
+        const hint = document.getElementById("bot-username-hint");
         if (hint) hint.textContent = `@${salesBot}`;
         document.querySelectorAll("[data-sales-bot]").forEach(el => {
           el.textContent = `@${salesBot}`;
         });
-        const script = document.createElement("script");
-        script.async = true;
-        script.src = "https://telegram.org/js/telegram-widget.js?22";
-        script.setAttribute("data-telegram-login", config.bot_username || "ConverzaApp_bot");
-        script.setAttribute("data-size", "medium");
-        script.setAttribute("data-radius", "8");
-        script.setAttribute("data-onauth", "onTelegramAuth(user)");
-        script.setAttribute("data-request-access", "write");
-        container.appendChild(script);
-      } catch (error) {
-        container.textContent = "Telegram orqali kirishni yuklab bo'lmadi.";
+      } catch (_) {
+        // Keep default @ConverzaSales_bot in markup.
       }
     }
-
-    window.onTelegramAuth = async function onTelegramAuth(user) {
-      try {
-        const response = await fetch("/api/auth/telegram", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(user)
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(parseApiError(result, response.statusText));
-        setAuthenticated(
-          { first_name: result.first_name, username: result.username },
-          result.org_id,
-          result.token
-        );
-        await loadExistingPassport();
-        if (state.orgId && !state.saved && !document.getElementById("pricing-list").children.length) {
-          seedExamples();
-        }
-      } catch (error) {
-        const msg = String(error.message || "");
-        if (msg.includes("admin tasdig")) {
-          showAccessPanel("pending");
-          updateSetupVisibility();
-          statusText.textContent = "Kirish uchun admin tasdiqi kerak";
-        }
-        showSave(msg, "error");
-      }
-    };
 
     function collectPassport() {
       const data = new FormData(form);
@@ -2364,30 +1955,6 @@
       });
     });
     document.getElementById("logout-btn").addEventListener("click", clearAuth);
-    document.getElementById("access-request-form").addEventListener("submit", submitAccessRequest);
-    document.getElementById("refresh-access-btn").addEventListener("click", refreshAccessStatus);
-    document.getElementById("retry-access-btn").addEventListener("click", () => {
-      localStorage.removeItem(ACCESS_REQUEST_KEY);
-      showAccessRequestForm();
-      scrollToAuth("req-name");
-    });
-    document.getElementById("goto-returning-login").addEventListener("click", () => {
-      showReturningLogin();
-      scrollToAuth();
-    });
-    document.getElementById("goto-access-request").addEventListener("click", () => {
-      showAccessRequestForm();
-      scrollToAuth("req-name");
-    });
-    document.querySelectorAll(".auth-tab").forEach(tab => {
-      tab.addEventListener("click", () => {
-        if (tab.dataset.authTab === "returning") {
-          showReturningLogin();
-        } else {
-          showAccessRequestForm();
-        }
-      });
-    });
     document.getElementById("send-btn").addEventListener("click", sendCopilot);
     document.getElementById("message-input").addEventListener("keydown", event => {
       if (event.key === "Enter" && !event.shiftKey) {
@@ -2486,18 +2053,13 @@
     pdfClear.addEventListener("click", () => { pdfState.files = []; renderPdfList(); pdfResult.hidden = true; });
     pdfGenerate.addEventListener("click", generateFromPdf);
 
-    document.getElementById("funnel-footer-btn").addEventListener("click", e => {
-      handleFunnelAction(e.currentTarget.dataset.action || "request");
-    });
-
     async function bootstrap() {
-      updateSetupVisibility();
-
       const restored = await restoreSession();
-      if (!restored && !state.orgId) {
-        await refreshAccessStatus();
+      if (!restored) {
+        window.location.replace("/?login=1");
+        return;
       }
-
+      await loadAuthConfig();
       if (state.orgId && !state.saved && !document.getElementById("pricing-list").children.length) {
         seedExamples();
       }

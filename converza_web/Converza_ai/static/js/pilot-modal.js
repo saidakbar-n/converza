@@ -70,7 +70,7 @@
           </div>
           <div class="pilot-success">
             <strong>Request submitted</strong>
-            <p>We'll review your application and notify you via Telegram once approved. Then sign in at the <a href="/app">dashboard</a>.</p>
+            <p>We'll review your application and notify you via Telegram once approved. Then use <strong>Sign in</strong> on this page to access your workspace.</p>
           </div>
         </div>
       </div>`;
