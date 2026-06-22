@@ -46,13 +46,21 @@ SALES_COMMANDS = [
 ]
 
 
+_COMMAND_DELETE_SCOPES: list[dict] = [
+    {},  # default
+    {"scope": {"type": "all_private_chats"}},
+    {"scope": {"type": "all_group_chats"}},
+]
+
+
 async def _delete_commands(api_base: str) -> None:
-    """Remove all slash commands for default scope and per-admin chat scopes."""
+    """Remove slash commands from default, chat-type, and per-admin scopes."""
     if not api_base:
         return
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            await client.post(f"{api_base}/deleteMyCommands", json={})
+            for scope_payload in _COMMAND_DELETE_SCOPES:
+                await client.post(f"{api_base}/deleteMyCommands", json=scope_payload)
             for admin_id in admin_telegram_ids():
                 try:
                     await client.post(

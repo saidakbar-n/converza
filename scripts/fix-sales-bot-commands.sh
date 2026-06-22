@@ -32,6 +32,12 @@ API="https://api.telegram.org/bot${TOKEN}"
 
 echo "==> Clearing all @ConverzaSales_bot command scopes"
 curl -fsS "${API}/deleteMyCommands" -H "Content-Type: application/json" -d '{}'
+curl -fsS "${API}/deleteMyCommands" \
+  -H "Content-Type: application/json" \
+  -d '{"scope":{"type":"all_private_chats"}}'
+curl -fsS "${API}/deleteMyCommands" \
+  -H "Content-Type: application/json" \
+  -d '{"scope":{"type":"all_group_chats"}}'
 if [[ -n "${ADMIN_TELEGRAM_IDS:-}" ]]; then
   IFS=',' read -ra ADMINS <<< "$ADMIN_TELEGRAM_IDS"
   for aid in "${ADMINS[@]}"; do

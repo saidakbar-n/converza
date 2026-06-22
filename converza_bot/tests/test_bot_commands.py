@@ -2,8 +2,11 @@
 
 import importlib.util
 from pathlib import Path
+from unittest.mock import patch
 
-from main import APP_COMMANDS, SALES_COMMANDS, _COMMAND_REFRESH_DELAYS_SEC
+import httpx
+
+from main import APP_COMMANDS, SALES_COMMANDS, _COMMAND_REFRESH_DELAYS_SEC, _delete_commands
 
 _PATCH_TELEGRAM = Path(__file__).resolve().parents[2] / "deploy" / "hermes" / "patch_telegram.py"
 _spec = importlib.util.spec_from_file_location("patch_telegram", _PATCH_TELEGRAM)
@@ -28,6 +31,39 @@ def test_app_commands_no_hermes_agent_cmds():
 def test_command_refresh_schedule_covers_hermes_startup():
     assert _COMMAND_REFRESH_DELAYS_SEC[0] == 15
     assert max(_COMMAND_REFRESH_DELAYS_SEC) >= 600
+
+
+def test_delete_commands_clears_all_scopes():
+    calls: list[dict] = []
+
+    class FakeClient:
+        async def post(self, url: str, json: dict):
+            calls.append(json)
+            return httpx.Response(200, json={"ok": True})
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    with (
+        patch("main.httpx.AsyncClient", return_value=FakeClient()),
+        patch("main.admin_telegram_ids", return_value=["111"]),
+    ):
+        import asyncio
+
+        asyncio.run(_delete_commands("https://api.telegram.org/botTEST"))
+
+    scope_types = [
+        c.get("scope", {}).get("type")
+        for c in calls
+        if c.get("scope")
+    ]
+    assert scope_types.count("chat") == 1
+    assert "all_private_chats" in scope_types
+    assert "all_group_chats" in scope_types
+    assert sum(1 for c in calls if not c.get("scope")) == 1
 
 
 def test_patch_telegram_disables_platform_and_strips_bot_token(tmp_path: Path):

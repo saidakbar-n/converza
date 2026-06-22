@@ -17,8 +17,10 @@ from agents.sales_config import (
     parse_sales_command,
 )
 from services.dedup import is_duplicate
+from services.org_resolver import resolve_org_id
 from services.subscriptions import activate_subscription
 from services.telegram_bots import APP_BOT_USERNAME, app_api_base, sales_api_base
+from services.telegram_inbound import extract_sender, is_business_owner_sender, resolve_inbound_message
 from services.telegram_send import send_app_message, send_sales_message
 
 logger = logging.getLogger(__name__)
@@ -150,15 +152,61 @@ async def _handle_sales_direct_message(update: TelegramUpdate) -> None:
     if not msg:
         return
 
+    user_id = msg.from_user.id if msg.from_user else msg.chat.id
     cmd = parse_sales_command(msg.text)
     if cmd == "/config":
-        await handle_config_command(msg.chat.id, msg.from_user.id if msg.from_user else msg.chat.id)
+        logger.info(
+            "Received /config update_id=%s chat_id=%s user_id=%s is_business=False",
+            update.update_id,
+            msg.chat.id,
+            user_id,
+        )
+        await handle_config_command(msg.chat.id, user_id)
         return
     if cmd in ("/start", "/help"):
         await _sales_bot_reply(msg.chat.id)
         return
 
     await _sales_bot_reply(msg.chat.id)
+
+
+async def _try_handle_sales_business_command(
+    update: TelegramUpdate, raw: dict
+) -> bool:
+    """Handle owner /config|/start|/help in business_message before ingestor skips them."""
+    msg, raw_msg, text, is_business = resolve_inbound_message(update, raw)
+    if not is_business or not msg or not raw_msg:
+        return False
+
+    cmd = parse_sales_command(text)
+    if cmd not in ("/config", "/start", "/help"):
+        return False
+
+    sender = extract_sender(msg, raw_msg)
+    if not sender:
+        return False
+
+    try:
+        org_id = resolve_org_id(update, raw=raw)
+    except ValueError:
+        return False
+
+    if not is_business_owner_sender(sender.id, org_id):
+        return False
+
+    chat_id = sender.id
+    user_id = sender.id
+    if cmd == "/config":
+        logger.info(
+            "Received /config update_id=%s chat_id=%s user_id=%s is_business=True",
+            update.update_id,
+            chat_id,
+            user_id,
+        )
+        await handle_config_command(chat_id, user_id)
+    else:
+        await _sales_bot_reply(chat_id)
+    return True
 
 
 def _log_background_task_error(task: asyncio.Task) -> None:
@@ -187,6 +235,8 @@ async def _dispatch_sales_update(update: TelegramUpdate, raw: dict | None = None
         from services.telegram_inbound import raw_business_message
 
         if update.business_message or raw_business_message(raw):
+            if await _try_handle_sales_business_command(update, raw or {}):
+                return
             await ingest_message(update, raw=raw)
             return
 

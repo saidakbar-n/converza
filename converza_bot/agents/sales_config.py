@@ -60,9 +60,21 @@ def _tone_keyboard(current: str | None) -> dict:
     return {"inline_keyboard": rows}
 
 
+async def _log_send_failure(resp: httpx.Response, *, chat_id: int, context: str) -> None:
+    if resp.is_success:
+        return
+    logger.error(
+        "sales config sendMessage failed context=%s chat_id=%s status=%s body=%s",
+        context,
+        chat_id,
+        resp.status_code,
+        resp.text,
+    )
+
+
 async def _send_with_keyboard(chat_id: int, text: str, *, current: str | None) -> None:
     async with httpx.AsyncClient(timeout=10) as client:
-        await client.post(
+        resp = await client.post(
             f"{TELEGRAM_API}/sendMessage",
             json={
                 "chat_id": chat_id,
@@ -70,12 +82,19 @@ async def _send_with_keyboard(chat_id: int, text: str, *, current: str | None) -
                 "reply_markup": _tone_keyboard(current),
             },
         )
+        await _log_send_failure(resp, chat_id=chat_id, context="tone_keyboard")
 
 
 async def handle_config_command(chat_id: int, user_id: int) -> None:
+    logger.info(
+        "handle_config_command chat_id=%s user_id=%s owner=%s",
+        chat_id,
+        user_id,
+        is_owner_chat(user_id, chat_id),
+    )
     if not is_owner_chat(user_id, chat_id):
         async with httpx.AsyncClient(timeout=10) as client:
-            await client.post(
+            resp = await client.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json={
                     "chat_id": chat_id,
@@ -85,13 +104,14 @@ async def handle_config_command(chat_id: int, user_id: int) -> None:
                     ),
                 },
             )
+            await _log_send_failure(resp, chat_id=chat_id, context="non_owner")
         return
 
     org_id = owner_org_id(chat_id)
     passport = fetch_passport_by_org(org_id)
     if not passport:
         async with httpx.AsyncClient(timeout=10) as client:
-            await client.post(
+            resp = await client.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json={
                     "chat_id": chat_id,
@@ -101,6 +121,7 @@ async def handle_config_command(chat_id: int, user_id: int) -> None:
                     ),
                 },
             )
+            await _log_send_failure(resp, chat_id=chat_id, context="no_passport")
         return
 
     current = passport.get("tone") or TONE_OPTIONS[0]
