@@ -25,7 +25,7 @@ touch "${HERMES_ENV}"
 # Strip Telegram vars so Hermes does not long-poll @ConverzaSales_bot (causes pairing spam).
 sed -i '/^TELEGRAM_/d' "${HERMES_ENV}" 2>/dev/null || true
 for var in GOOGLE_API_KEY GEMINI_API_KEY GROQ_API_KEY ANTHROPIC_API_KEY OPENROUTER_API_KEY \
-  SUPABASE_URL SUPABASE_SERVICE_KEY; do
+  SUPABASE_URL SUPABASE_SERVICE_KEY GATEWAY_ALLOW_ALL_USERS HERMES_MAX_TOKENS HERMES_CONTEXT_LENGTH; do
   val="${!var:-}"
   if [[ -n "$val" ]]; then
     if grep -q "^${var}=" "${HERMES_ENV}" 2>/dev/null; then
@@ -35,6 +35,11 @@ for var in GOOGLE_API_KEY GEMINI_API_KEY GROQ_API_KEY ANTHROPIC_API_KEY OPENROUT
     fi
   fi
 done
+
+# HTTP API auth uses HERMES_API_KEY — silence Telegram allowlist warning.
+if ! grep -q "^GATEWAY_ALLOW_ALL_USERS=" "${HERMES_ENV}" 2>/dev/null; then
+  echo "GATEWAY_ALLOW_ALL_USERS=true" >> "${HERMES_ENV}"
+fi
 
 HERMES_CONFIG="${HERMES_HOME}/config.yaml"
 if [[ ! -f "$HERMES_CONFIG" ]] || ! grep -q "mcp_servers:" "$HERMES_CONFIG" 2>/dev/null; then

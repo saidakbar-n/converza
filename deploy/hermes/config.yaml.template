@@ -5,10 +5,17 @@ custom_providers:
   - name: groq
     base_url: https://api.groq.com/openai/v1
     key_env: GROQ_API_KEY
+    models:
+      llama-3.3-70b-versatile:
+        max_tokens: 8192
+        context_length: 128000
 
 model:
   default: llama-3.3-70b-versatile
   provider: custom:groq
+  # Groq llama-3.3-70b: ~128k context, ~33k max output — avoid Hermes defaulting too high.
+  max_tokens: 4096
+  context_length: 128000
 
 # Converza owns Telegram via converza_bot webhooks — Hermes is HTTP API + MCP only.
 platforms:

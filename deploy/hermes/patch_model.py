@@ -53,9 +53,17 @@ def _replace_model_block(text: str, model: str, provider: str) -> str:
     out: list[str] = []
     i = 0
     replaced = False
+    max_tokens = os.environ.get("HERMES_MAX_TOKENS", "4096").strip() or "4096"
+    context_length = os.environ.get("HERMES_CONTEXT_LENGTH", "128000").strip() or "128000"
     while i < len(lines):
         if lines[i].startswith("model:"):
-            out.append(f"model:\n  default: {model}\n  provider: {provider}\n")
+            out.append(
+                "model:\n"
+                f"  default: {model}\n"
+                f"  provider: {provider}\n"
+                f"  max_tokens: {max_tokens}\n"
+                f"  context_length: {context_length}\n"
+            )
             replaced = True
             i += 1
             while i < len(lines) and (
@@ -66,8 +74,39 @@ def _replace_model_block(text: str, model: str, provider: str) -> str:
         out.append(lines[i])
         i += 1
     if not replaced:
-        out.insert(0, f"model:\n  default: {model}\n  provider: {provider}\n\n")
+        out.insert(
+            0,
+            (
+                "model:\n"
+                f"  default: {model}\n"
+                f"  provider: {provider}\n"
+                f"  max_tokens: {max_tokens}\n"
+                f"  context_length: {context_length}\n\n"
+            ),
+        )
     return "".join(out)
+
+
+def _ensure_groq_model_limits(text: str, model: str) -> str:
+    """Ensure custom_providers groq entry includes per-model max_tokens/context_length."""
+    max_tokens = os.environ.get("HERMES_MAX_TOKENS", "8192").strip() or "8192"
+    context_length = os.environ.get("HERMES_CONTEXT_LENGTH", "128000").strip() or "128000"
+    model_block = (
+        f"    models:\n"
+        f"      {model}:\n"
+        f"        max_tokens: {max_tokens}\n"
+        f"        context_length: {context_length}\n"
+    )
+    if "name: groq" not in text:
+        return text
+    if re.search(rf"(?m)^\s+{re.escape(model)}:\s*$", text):
+        return text
+    return re.sub(
+        r"(?m)^(\s+- name: groq\n(?:\s+.+\n)*?)(?=^\S|\Z)",
+        lambda m: m.group(1) + model_block,
+        text,
+        count=1,
+    )
 
 
 def patch_config(path: Path) -> None:
@@ -95,6 +134,8 @@ def patch_config(path: Path) -> None:
             text = f"custom_providers:\n{groq_entry}\n" + text
 
     text = _replace_model_block(text, model, provider)
+    if kind == "groq":
+        text = _ensure_groq_model_limits(text, model)
     path.write_text(text, encoding="utf-8")
     print(f"Patched {path}: provider={provider} default={model}")
 
