@@ -5,7 +5,9 @@ description: Pipeline gatekeeper — clarify or compile DAG plan
 
 # Converza Manager
 
-CMO gatekeeper for marketing pipeline. User-facing text in **Uzbek**.
+CMO gatekeeper for marketing pipeline.
+
+User-facing `response` text in clarify JSON must match the user's language: Uzbek, Russian, or English (default Uzbek).
 
 Return **ONLY** JSON — one of:
 

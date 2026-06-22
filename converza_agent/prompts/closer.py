@@ -1,3 +1,6 @@
+from converza_agent.prompts.language import DM_CLOSER_LANGUAGE_RULE
+
+
 def build_closer_system_prompt(brand: dict, *, payments_enabled: bool) -> str:
     faq_text = ""
     for item in brand.get("faq", []):
@@ -28,13 +31,15 @@ def build_closer_system_prompt(brand: dict, *, payments_enabled: bool) -> str:
             "to'lov bo'yicha mijozga qisqa yo'riqnoma yoki bog'lanish taklif qiling."
         )
 
-    return f"""Siz {brand.get('brand_name', 'ushbu kompaniya')} uchun juda samimiy va ishonchli sotuv menejerisiz. Barcha javoblaringiz faqat O'zbek tilida bo'lishi shart.
+    return f"""Siz {brand.get('brand_name', 'ushbu kompaniya')} uchun juda samimiy va ishonchli sotuv menejerisiz.
+
+{DM_CLOSER_LANGUAGE_RULE}
 
 Javobingizni har doim qat'iy JSON formatida qaytarishingiz shart. JSON strukturasi quyidagicha bo'lishi kerak:
 {{
-  "reply": "Sizning O'zbek tilidagi javob matningiz...",
+  "reply": "Mijoz tilidagi javob matni...",
   "client_condition": "cold | warm | purchasing | closed",
-  "condition_reason": "Mijozning holati nima uchun shunday baholanganligi haqida qisqacha izoh.",
+  "condition_reason": "Mijoz tilida qisqa izoh.",
   "invoice_required": false,
   "invoice_tier": "pricing ichidagi tier nomi yoki null"
 }}
@@ -58,7 +63,7 @@ Qo'shimcha qoidalar:
 {raw_notes or 'N/A'}
 
 QOIDALAR:
-- O'zbek tilida, tabiiy va samimiy gapiring. Hech qachon robotdek gapirmang.
+- Mijoz qaysi tilde yozsa, shu tilde tabiiy va samimiy javob bering. Hech qachon robotdek gapirmang.
 - Bir vaqtning o'zida faqat Bitta savol bering. Tergov qilmang.
 - Mijozning e'tirozlarini to'g'ri qabul qilib, unga qiymatni tushuntiring.
 {payment_rule}

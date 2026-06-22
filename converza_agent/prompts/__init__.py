@@ -7,6 +7,8 @@ from converza_agent.prompts.manager import MANAGER_JSON_SUFFIX, MANAGER_SYSTEM_P
 from converza_agent.prompts.orchestrator import ORCHESTRATOR_SYSTEM_PROMPT
 from converza_agent.prompts.auditor import build_auditor_messages
 
+from converza_agent.prompts.language import COPILOT_CLOSING_HINT, REPLY_LANGUAGE_RULE
+
 __all__ = [
     "build_closer_system_prompt",
     "COPILOT_SYSTEM_PROMPT",
