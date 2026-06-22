@@ -1119,6 +1119,7 @@
       background: var(--surface-2);
       color: var(--ink);
       border-bottom-left-radius: 4px;
+      word-break: break-word;
     }
 
     .bubble.error {
@@ -1467,7 +1468,7 @@
         </div>
         <div class="chat-shell">
           <div id="messages">
-            <div class="bubble assistant">Savol bering: skript, e'tiroz, kontent rejasi.</div>
+            <div class="bubble assistant">Savolingizni yozing — strategiya, matn, e'tirozlar yoki kontent rejasi bo'yicha yordam beraman.</div>
           </div>
           <div class="composer">
             <textarea id="message-input" placeholder="Co-Pilot'ga yozing..." spellcheck="true"></textarea>
@@ -2205,10 +2206,29 @@
       if (titleEl) titleEl.textContent = titles[view] || "Converza";
     }
 
+    function formatCopilotReply(text) {
+      if (!text) return "";
+      return text
+        .replace(/\*\*(.+?)\*\*/g, "$1")
+        .replace(/\*(.+?)\*/g, "$1")
+        .replace(/^#{1,6}\s+/gm, "")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+
+    function setBubbleText(bubble, text) {
+      bubble.textContent = formatCopilotReply(text);
+    }
+
     function appendBubble(role, text) {
       const bubble = document.createElement("div");
       bubble.className = `bubble ${role}`;
-      bubble.textContent = text;
+      if (role === "assistant") {
+        setBubbleText(bubble, text);
+      } else {
+        bubble.textContent = text;
+      }
       document.getElementById("messages").appendChild(bubble);
       bubble.scrollIntoView({ block: "end" });
       return bubble;
@@ -2284,20 +2304,20 @@
           if (event.conversation_id) state.conversationId = event.conversation_id;
           if (event.type === "dag_plan") {
             full += `\n\n[Agent rejasi: ${event.plan?.campaign_name || "kampaniya"}]`;
-            assistant.textContent = full.trim();
+            setBubbleText(assistant, full);
           }
           if (event.type === "dag_result") {
             full += `\n\n[Kampaniya tayyor: ${event.campaign_name || "bajarildi"}]`;
-            assistant.textContent = full.trim();
+            setBubbleText(assistant, full);
           }
           if (event.type === "dag_error") throw new Error(event.error);
           const token = event.token;
           if (token) {
             full += token;
-            assistant.textContent = full;
+            setBubbleText(assistant, full);
           }
         });
-        if (full) state.conversationHistory.push({ role: "assistant", content: full });
+        if (full) state.conversationHistory.push({ role: "assistant", content: formatCopilotReply(full) });
       } catch (error) {
         assistant.className = "bubble error";
         assistant.textContent = error.message;

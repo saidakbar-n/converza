@@ -186,23 +186,67 @@ app.add_middleware(
 # Helpers
 # ---------------------------------------------------------------------------
 
-def build_context_block(ctx: ClientContext, role: str) -> str:
+def build_context_block(
+    ctx: ClientContext,
+    role: str,
+    passport: dict | None = None,
+) -> str:
     """
     Builds the client context injection block prepended to the first user message.
     Keeping this out of the system prompt preserves prompt cache hit rates.
     """
-    hex_str = ", ".join(ctx.hex_colors) if ctx.hex_colors else "Not provided"
-    return (
-        f"[CLIENT CONTEXT]\n"
-        f"Brand Name: {ctx.brand_name}\n"
-        f"Industry: {ctx.industry}\n"
-        f"Target Location: {ctx.target_location}\n"
-        f"Brand Colors (hex): {hex_str}\n"
-        f"Target Audience: {ctx.target_audience}\n"
-        f"Core Offer: {ctx.core_offer}\n"
-        f"User Role: {role}\n"
-        f"[END CLIENT CONTEXT]\n\n"
-    )
+    hex_str = ", ".join(ctx.hex_colors) if ctx.hex_colors else "Ko'rsatilmagan"
+    lines = [
+        "[BREND KONTEKSTI]",
+        f"Brend: {ctx.brand_name}",
+        f"Soha: {ctx.industry}",
+        f"Hudud: {ctx.target_location}",
+        f"Ranglar (hex): {hex_str}",
+        f"Auditoriya: {ctx.target_audience}",
+        f"Asosiy taklif: {ctx.core_offer}",
+        f"Foydalanuvchi roli: {role}",
+    ]
+
+    if passport:
+        tone = (passport.get("tone") or passport.get("brand_voice") or "").strip()
+        if tone:
+            lines.append(f"Ohang: {tone}")
+
+        pricing = passport.get("pricing") or []
+        if pricing:
+            lines.append("Narxlar:")
+            for item in pricing[:8]:
+                tier = (item.get("tier") or "").strip()
+                price = (item.get("price") or "").strip()
+                if tier or price:
+                    lines.append(f"  - {tier}: {price}")
+
+        faq = passport.get("faq") or []
+        if faq:
+            lines.append("Tez-tez savollar:")
+            for item in faq[:5]:
+                q = (item.get("question") or item.get("q") or "").strip()
+                a = (item.get("answer") or item.get("a") or "").strip()
+                if q:
+                    lines.append(f"  - {q}" + (f" → {a}" if a else ""))
+
+        objections = passport.get("objections") or []
+        if objections:
+            lines.append("E'tirozlar:")
+            for item in objections[:5]:
+                obj = (item.get("objection") or "").strip()
+                resp = (item.get("response") or "").strip()
+                if obj:
+                    lines.append(f"  - {obj}" + (f" → {resp}" if resp else ""))
+
+        notes = (passport.get("raw_notes") or "").strip()
+        if notes:
+            snippet = notes[:600] + ("…" if len(notes) > 600 else "")
+            lines.append(f"Qo'shimcha eslatmalar: {snippet}")
+
+    lines.append("[BREND KONTEKSTI TUGADI]")
+    lines.append("")
+    return "\n".join(lines)
 
 
 async def stream_response(
@@ -614,7 +658,9 @@ async def get_brand_passport_by_org(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-def _resolve_client_context(request: ChatRequest, org_id: str) -> ClientContext:
+def _resolve_client_context(
+    request: ChatRequest, org_id: str
+) -> tuple[ClientContext, dict | None]:
     if request.brand_id:
         passport = fetch_passport_by_id(request.brand_id)
         if not passport:
@@ -624,8 +670,8 @@ def _resolve_client_context(request: ChatRequest, org_id: str) -> ClientContext:
                 status_code=403,
                 detail="Bu pasport sizning hisobingizga tegishli emas.",
             )
-        return ClientContext(**passport_to_client_context(passport))
-    return request.client_context
+        return ClientContext(**passport_to_client_context(passport)), passport
+    return request.client_context, None
 
 
 @app.get("/api/copilot/status")
@@ -662,19 +708,22 @@ async def chat(
         )
 
     conversation_id = str(uuid.uuid4())
-    client_context = _resolve_client_context(request, org_id)
-    context_block = build_context_block(client_context, request.user_role)
+    client_context, passport = _resolve_client_context(request, org_id)
+    context_block = build_context_block(
+        client_context, request.user_role, passport=passport
+    )
 
     history = list(request.conversation_history)
 
     if history:
-        # Inject context into the first user message if not already present (idempotent)
         first_content = history[0].get("content", "")
-        if "[CLIENT CONTEXT]" not in first_content:
+        if (
+            "[BREND KONTEKSTI]" not in first_content
+            and "[CLIENT CONTEXT]" not in first_content
+        ):
             history[0] = {**history[0], "content": context_block + first_content}
         messages = history + [{"role": "user", "content": request.message}]
     else:
-        # First turn — prepend context to the current message
         messages = [{"role": "user", "content": context_block + request.message}]
 
     return StreamingResponse(
