@@ -1,9 +1,12 @@
 /**
  * Shared Book Pilot access-request modal.
- * Opens from any [data-book-pilot] trigger; POSTs to /api/access-request.
  */
 (function () {
   const ACCESS_REQUEST_KEY = "converza_access_request_id";
+
+  function t(key, vars) {
+    return window.ConverzaI18n?.t(key, vars) || key;
+  }
 
   function escapeAttr(s) {
     return String(s)
@@ -17,18 +20,22 @@
     const message = String(fd.get("message") || "").trim();
     const phone = String(fd.get("contact") || "").replace(/\D/g, "");
     const username = String(fd.get("telegram_username") || "").trim().replace(/^@/, "");
-    if (message.length < 30) return "Describe your challenge in at least 30 characters.";
-    if (phone.length < 9) return "Enter a valid phone number (e.g. +998901234567).";
-    if (username.length < 3) return "Enter your Telegram @username.";
+    if (message.length < 30) return t("pilot.error.messageMin");
+    if (phone.length < 9) return t("pilot.error.phone");
+    if (username.length < 3) return t("pilot.error.username");
     return null;
   }
 
   function parseApiError(result, fallback) {
+    if (window.ConverzaI18n?.translateApiError) {
+      const detail = typeof result.detail === "string" ? result.detail : fallback;
+      return window.ConverzaI18n.translateApiError(detail, fallback);
+    }
     if (typeof result.detail === "string") return result.detail;
     if (Array.isArray(result.detail)) {
       return result.detail.map(d => d.msg || d).join("; ");
     }
-    return fallback || "Request failed.";
+    return fallback || t("app.error.requestFailed");
   }
 
   function createModal() {
@@ -43,34 +50,34 @@
         <div id="pilot-form-view">
           <div class="pilot-modal-head">
             <div>
-              <h2 id="pilot-modal-title">Book Pilot Access</h2>
-              <p>Request early access to Converza DM Closer. We'll review and approve within 24 hours.</p>
+              <h2 id="pilot-modal-title" data-i18n="pilot.title">Book Pilot Access</h2>
+              <p data-i18n="pilot.subtitle">Request early access.</p>
             </div>
-            <button type="button" class="pilot-modal-close" aria-label="Close">&times;</button>
+            <button type="button" class="pilot-modal-close" data-i18n-title="pilot.close" aria-label="Close">&times;</button>
           </div>
           <form class="pilot-form" id="pilot-access-form">
-            <label for="pilot-name">Full name *</label>
+            <label for="pilot-name" data-i18n="pilot.fullName">Full name *</label>
             <input id="pilot-name" name="full_name" required minlength="2" placeholder="Ali Valiyev" autocomplete="name" />
-            <label for="pilot-business">Business name *</label>
+            <label for="pilot-business" data-i18n="pilot.businessName">Business name *</label>
             <input id="pilot-business" name="business_name" required minlength="2" placeholder="Nafis Beauty Salon" autocomplete="organization" />
-            <label for="pilot-message">Main challenge *</label>
-            <textarea id="pilot-message" name="message" required minlength="30" maxlength="500" placeholder="We lose leads after hours because nobody replies to Telegram DMs..."></textarea>
-            <label for="pilot-contact">Phone number *</label>
+            <label for="pilot-message" data-i18n="pilot.challenge">Main challenge *</label>
+            <textarea id="pilot-message" name="message" required minlength="30" maxlength="500" placeholder="We lose leads after hours..."></textarea>
+            <label for="pilot-contact" data-i18n="pilot.phone">Phone number *</label>
             <input id="pilot-contact" name="contact" type="tel" required placeholder="+998901234567" autocomplete="tel" />
-            <label for="pilot-telegram">Telegram @username *</label>
+            <label for="pilot-telegram" data-i18n="pilot.telegram">Telegram @username *</label>
             <input id="pilot-telegram" name="telegram_username" required placeholder="@username" autocomplete="username" />
-            <p class="pilot-form-hint" id="pilot-form-hint">Use the same @username you'll log in with.</p>
-            <button type="submit" class="btn-pilot btn-submit">Submit Request</button>
+            <p class="pilot-form-hint" id="pilot-form-hint" data-i18n="pilot.hint">Use the same @username you'll log in with.</p>
+            <button type="submit" class="btn-pilot btn-submit" data-i18n="pilot.submit">Submit Request</button>
           </form>
         </div>
         <div id="pilot-success-view" hidden>
           <div class="pilot-modal-head">
             <div></div>
-            <button type="button" class="pilot-modal-close" aria-label="Close">&times;</button>
+            <button type="button" class="pilot-modal-close" data-i18n-title="pilot.close" aria-label="Close">&times;</button>
           </div>
           <div class="pilot-success">
-            <strong>Request submitted</strong>
-            <p>We'll review your application and notify you via Telegram once approved. Then use <strong>Sign in</strong> on this page to access your workspace.</p>
+            <strong data-i18n="pilot.successTitle">Request submitted</strong>
+            <p data-i18n="pilot.successDesc">We'll review your application.</p>
           </div>
         </div>
       </div>`;
@@ -86,11 +93,16 @@
   const form = overlay.querySelector("#pilot-access-form");
   const hint = overlay.querySelector("#pilot-form-hint");
 
+  function applyModalI18n() {
+    window.ConverzaI18n?.applyTo(overlay);
+  }
+
   function openModal() {
     formView.hidden = false;
     successView.hidden = true;
     form.reset();
-    hint.textContent = "Use the same @username you'll log in with.";
+    applyModalI18n();
+    hint.textContent = t("pilot.hint");
     overlay.classList.add("open");
     document.body.style.overflow = "hidden";
     setTimeout(() => overlay.querySelector("#pilot-name")?.focus(), 100);
@@ -109,11 +121,12 @@
       hint.textContent = clientError;
       return;
     }
-    hint.textContent = "Submitting...";
+    hint.textContent = t("pilot.submitting");
     try {
+      const headers = { "Content-Type": "application/json", ...(window.ConverzaI18n?.apiLangHeader?.() || {}) };
       const response = await fetch("/api/access-request", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           full_name: String(fd.get("full_name")).trim(),
           business_name: String(fd.get("business_name")).trim(),
@@ -127,6 +140,7 @@
       localStorage.setItem(ACCESS_REQUEST_KEY, result.request_id);
       formView.hidden = true;
       successView.hidden = false;
+      applyModalI18n();
     } catch (error) {
       hint.textContent = error.message;
     }
@@ -144,6 +158,8 @@
     if (e.key === "Escape" && overlay.classList.contains("open")) closeModal();
   });
 
+  document.addEventListener("converza:langchange", applyModalI18n);
+
   form.addEventListener("submit", submitForm);
 
   document.addEventListener("click", (e) => {
@@ -154,5 +170,6 @@
     }
   });
 
+  applyModalI18n();
   window.ConverzaPilotModal = { open: openModal, close: closeModal };
 })();

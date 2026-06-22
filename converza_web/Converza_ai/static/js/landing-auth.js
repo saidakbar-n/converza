@@ -1,16 +1,23 @@
 /**
  * Telegram sign-in on the landing page.
- * Approved users authenticate here and are redirected to /app.
  */
 (function () {
   const AUTH_STORAGE_KEY = "converza_auth";
 
+  function t(key, vars) {
+    return window.ConverzaI18n?.t(key, vars) || key;
+  }
+
   function parseApiError(result, fallback) {
+    if (window.ConverzaI18n?.translateApiError) {
+      const detail = typeof result.detail === "string" ? result.detail : fallback;
+      return window.ConverzaI18n.translateApiError(detail, fallback);
+    }
     if (typeof result.detail === "string") return result.detail;
     if (Array.isArray(result.detail)) {
       return result.detail.map(d => d.msg || d).join("; ");
     }
-    return fallback || "Sign in failed.";
+    return fallback || t("auth.error.failed");
   }
 
   function createAuthModal() {
@@ -24,13 +31,13 @@
       <div class="pilot-modal">
         <div class="pilot-modal-head">
           <div>
-            <h2 id="auth-modal-title">Sign in with Telegram</h2>
-            <p>For approved accounts only. Use the same @username from your access request.</p>
+            <h2 id="auth-modal-title" data-i18n="auth.title">Sign in with Telegram</h2>
+            <p data-i18n="auth.subtitle">For approved accounts only.</p>
           </div>
-          <button type="button" class="pilot-modal-close" aria-label="Close">&times;</button>
+          <button type="button" class="pilot-modal-close" data-i18n-title="common.close" aria-label="Close">&times;</button>
         </div>
         <div id="landing-telegram-login"></div>
-        <p class="auth-modal-hint" id="auth-modal-hint">If the button does not appear, check the domain in BotFather.</p>
+        <p class="auth-modal-hint" id="auth-modal-hint" data-i18n="auth.hint">If the button does not appear, check the domain in BotFather.</p>
       </div>`;
     document.body.appendChild(overlay);
     return overlay;
@@ -42,8 +49,13 @@
   const loginContainer = overlay.querySelector("#landing-telegram-login");
   const hint = overlay.querySelector("#auth-modal-hint");
 
+  function applyModalI18n() {
+    window.ConverzaI18n?.applyTo(overlay);
+  }
+
   function openModal() {
-    hint.textContent = "If the button does not appear, check the domain in BotFather.";
+    applyModalI18n();
+    hint.textContent = t("auth.hint");
     overlay.classList.add("open");
     document.body.style.overflow = "hidden";
     mountTelegramWidget();
@@ -69,16 +81,17 @@
       script.setAttribute("data-request-access", "write");
       loginContainer.appendChild(script);
     } catch (_) {
-      hint.textContent = "Could not load Telegram sign-in. Try again later.";
+      hint.textContent = t("auth.error.loadFailed");
     }
   }
 
   window.onLandingTelegramAuth = async function onLandingTelegramAuth(user) {
-    hint.textContent = "Signing in...";
+    hint.textContent = t("auth.signingIn");
     try {
+      const headers = { "Content-Type": "application/json", ...(window.ConverzaI18n?.apiLangHeader?.() || {}) };
       const response = await fetch("/api/auth/telegram", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(user)
       });
       const result = await response.json();
@@ -104,7 +117,7 @@
       const { token } = JSON.parse(cached);
       if (!token) return false;
       const response = await fetch("/api/auth/me", {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}`, ...(window.ConverzaI18n?.apiLangHeader?.() || {}) }
       });
       if (!response.ok) {
         localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -131,6 +144,9 @@
       openModal();
     }
   });
+  document.addEventListener("converza:langchange", applyModalI18n);
+
+  applyModalI18n();
 
   redirectIfSessionValid().then(redirected => {
     if (redirected) return;

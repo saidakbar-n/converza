@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uz">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,6 +7,8 @@
   <meta name="description" content="Replace after-hours chaos with an autonomous Telegram DM closer. Reply to leads, send invoices, and close deals 24/7 — no human operators required." />
   <link rel="stylesheet" href="/css/converza.css" />
   <link rel="stylesheet" href="/css/landing.css" />
+  <script src="/js/locales.js"></script>
+  <script src="/js/i18n.js"></script>
 </head>
 <body>
   <main class="landing">
@@ -20,47 +22,51 @@
         Converza
       </a>
       <div class="landing-nav-links">
-        <a href="#proof">Infrastructure</a>
-        <a href="#how-it-works">Protocol</a>
-        <a href="#benefits">Capabilities</a>
+        <a href="#proof" data-i18n="nav.infrastructure">Infrastructure</a>
+        <a href="#how-it-works" data-i18n="nav.protocol">Protocol</a>
+        <a href="#benefits" data-i18n="nav.capabilities">Capabilities</a>
       </div>
       <div class="landing-nav-actions">
-        <button type="button" class="btn-nav-signin" data-sign-in>Sign in</button>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <button type="button" data-lang="uz">UZ</button>
+          <button type="button" data-lang="ru">RU</button>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <button type="button" class="btn-nav-signin" data-sign-in data-i18n="nav.signIn">Sign in</button>
         <button type="button" class="btn-pilot" data-book-pilot>
-          Book Pilot
+          <span data-i18n="nav.bookPilot">Book Pilot</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
       </div>
     </nav>
 
-    <!-- Hero -->
     <section class="hero-section">
       <div class="hero-grid">
         <div class="fade-up">
           <div class="system-pill">
             <span class="pulse-wrap"><span class="pulse-ring"></span><span class="pulse-dot"></span></span>
-            System Online: 24/7 DM
+            <span data-i18n="landing.hero.pill">System Online: 24/7 DM</span>
           </div>
           <h1 class="hero-title">
-            <span>Replace the</span>
-            <span class="serif-accent">Night Shift.</span>
+            <span data-i18n="landing.hero.title1">Replace the</span>
+            <span class="serif-accent" data-i18n="landing.hero.title2">Night Shift.</span>
           </h1>
-          <p class="hero-sub">
-            Automate Telegram sales conversations for your business. Reply to leads, send Click invoices, and close deals — without hiring operators or missing messages after hours. <strong>No human management required.</strong>
+          <p class="hero-sub" data-i18n="landing.hero.sub">
+            Automate Telegram sales conversations for your business.
           </p>
           <div>
             <button type="button" class="btn-dark" data-book-pilot>
-              <span>Book Your Pilot</span>
+              <span data-i18n="landing.hero.cta">Book Your Pilot</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </button>
             <div class="hero-checks">
               <span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
-                Cancel anytime
+                <span data-i18n="landing.hero.checkCancel">Cancel anytime</span>
               </span>
               <span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
-                Keep your data
+                <span data-i18n="landing.hero.checkData">Keep your data</span>
               </span>
             </div>
           </div>
@@ -72,7 +78,7 @@
             <div class="hero-frame-overlay"></div>
             <div class="hero-ui-bottom">
               <div class="hero-node-card">
-                <div class="label">Node 04 / DM Queue</div>
+                <div class="label" data-i18n="landing.hero.nodeLabel">Node 04 / DM Queue</div>
                 <div class="hero-progress"><div class="hero-progress-bar"></div></div>
               </div>
               <div class="hero-server-badge">
@@ -84,32 +90,31 @@
       </div>
     </section>
 
-    <!-- Features -->
     <section id="proof" class="features-section">
       <div class="features-inner">
-        <h2 class="features-heading">Algorithms don't miss midnight messages.</h2>
+        <h2 class="features-heading" data-i18n="landing.features.heading">Algorithms don't miss midnight messages.</h2>
         <div class="features-grid" id="benefits">
           <article class="feature-card">
-            <span class="feature-tag">Component // 01</span>
-            <h3>Deploy an autonomous DM closer on Telegram Business.</h3>
-            <p>Connect your business account and let Converza handle inbound sales conversations trained on your brand passport.</p>
+            <span class="feature-tag" data-i18n="landing.features.card1Tag">Component // 01</span>
+            <h3 data-i18n="landing.features.card1Title">Deploy an autonomous DM closer on Telegram Business.</h3>
+            <p data-i18n="landing.features.card1Desc">Connect your business account and let Converza handle inbound sales conversations trained on your brand passport.</p>
             <div class="shuffler-stage" id="shuffler-stage"></div>
           </article>
 
           <article class="feature-card dark">
-            <span class="feature-tag">Component // 02</span>
-            <h3>Reply to every lead in seconds, around the clock.</h3>
-            <p>Feed the system your pricing, FAQ, and tone — receive polished, on-brand responses while you sleep.</p>
+            <span class="feature-tag" data-i18n="landing.features.card2Tag">Component // 02</span>
+            <h3 data-i18n="landing.features.card2Title">Reply to every lead in seconds, around the clock.</h3>
+            <p data-i18n="landing.features.card2Desc">Feed the system your pricing, FAQ, and tone — receive polished, on-brand responses while you sleep.</p>
             <div class="terminal-box">
-              <div class="terminal-live"><span class="dot"></span> LIVE FEED</div>
+              <div class="terminal-live"><span class="dot"></span> <span data-i18n="landing.features.terminalLive">LIVE FEED</span></div>
               <span id="terminal-text"></span><span class="terminal-cursor"></span>
             </div>
           </article>
 
           <article class="feature-card">
-            <span class="feature-tag">Component // 03</span>
-            <h3>Eliminate human latency &amp; operator costs.</h3>
-            <p>Skip the shift schedules. Automated follow-ups and Click payment links deploy on your schedule.</p>
+            <span class="feature-tag" data-i18n="landing.features.card3Tag">Component // 03</span>
+            <h3 data-i18n="landing.features.card3Title">Eliminate human latency &amp; operator costs.</h3>
+            <p data-i18n="landing.features.card3Desc">Skip the shift schedules. Automated follow-ups and Click payment links deploy on your schedule.</p>
             <div class="scheduler-box">
               <div class="week-grid">
                 <div><div class="day-label">S</div><div class="day-cell"></div></div>
@@ -120,7 +125,7 @@
                 <div><div class="day-label">F</div><div class="day-cell"></div></div>
                 <div><div class="day-label">S</div><div class="day-cell"></div></div>
               </div>
-              <div class="deploy-btn">Deploy Schedule</div>
+              <div class="deploy-btn" data-i18n="landing.features.deploySchedule">Deploy Schedule</div>
               <svg id="scheduler-cursor" class="scheduler-cursor" width="24" height="36" viewBox="0 0 24 36" fill="none"><path d="M1 1L11.5 31.5L15 18.5L23.5 13L1 1Z" fill="#111111" stroke="white" stroke-width="2"/></svg>
             </div>
           </article>
@@ -128,26 +133,24 @@
       </div>
     </section>
 
-    <!-- Philosophy -->
     <section id="how-it-works" class="philosophy-section">
       <div class="philosophy-box">
         <div class="philosophy-bg" aria-hidden="true"></div>
         <div class="philosophy-content">
           <p class="philosophy-lead">
-            Most Uzbek businesses focus on:<br />
-            <em>manually answering every Telegram DM.</em>
+            <span data-i18n="landing.philosophy.lead">Most Uzbek businesses focus on:</span><br />
+            <em data-i18n="landing.philosophy.leadEm">manually answering every Telegram DM.</em>
           </p>
           <div class="philosophy-focus">
-            <span class="label">We focus on:</span>
-            <span class="serif">autonomous closing.</span>
+            <span class="label" data-i18n="landing.philosophy.focusLabel">We focus on:</span>
+            <span class="serif" data-i18n="landing.philosophy.focusText">autonomous closing.</span>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Protocol -->
     <section class="protocol-section">
-      <h2 class="protocol-heading">The Deployment Protocol.</h2>
+      <h2 class="protocol-heading" data-i18n="landing.protocol.heading">The Deployment Protocol.</h2>
 
       <article class="protocol-card">
         <div class="protocol-icon-wrap">
@@ -156,9 +159,9 @@
           </div>
         </div>
         <div class="protocol-body">
-          <div class="phase">SYSTEM.PHASE_01</div>
-          <h3>Define Brand Passport</h3>
-          <p>Upload logos, pricing, FAQ, and tone. The DM closer builds a mathematical model of your brand and binds it to every reply.</p>
+          <div class="phase" data-i18n="landing.protocol.phase1Code">SYSTEM.PHASE_01</div>
+          <h3 data-i18n="landing.protocol.phase1Title">Define Brand Passport</h3>
+          <p data-i18n="landing.protocol.phase1Desc">Upload logos, pricing, FAQ, and tone.</p>
         </div>
       </article>
 
@@ -169,9 +172,9 @@
           </div>
         </div>
         <div class="protocol-body">
-          <div class="phase">SYSTEM.PHASE_02</div>
-          <h3>Review Terminal</h3>
-          <p>Configure your DM Closer rules in your workspace. Approve response templates, set payment tiers, and tune objection handlers before going live.</p>
+          <div class="phase" data-i18n="landing.protocol.phase2Code">SYSTEM.PHASE_02</div>
+          <h3 data-i18n="landing.protocol.phase2Title">Review Terminal</h3>
+          <p data-i18n="landing.protocol.phase2Desc">Configure your DM Closer rules in your workspace.</p>
         </div>
       </article>
 
@@ -182,24 +185,23 @@
           </div>
         </div>
         <div class="protocol-body">
-          <div class="phase">SYSTEM.PHASE_03</div>
-          <h3>Telegram Deploy</h3>
-          <p>Connect Telegram Business via @ConverzaSales_bot. Approved replies and Click invoices flow automatically through your business account.</p>
+          <div class="phase" data-i18n="landing.protocol.phase3Code">SYSTEM.PHASE_03</div>
+          <h3 data-i18n="landing.protocol.phase3Title">Telegram Deploy</h3>
+          <p data-i18n="landing.protocol.phase3Desc">Connect Telegram Business via @ConverzaSales_bot.</p>
         </div>
       </article>
     </section>
 
-    <!-- Pilot CTA -->
     <section id="pilot" class="pilot-section">
       <div class="pilot-box">
-        <div class="pilot-badge"><span class="dot"></span> Q3 Pilot Access</div>
-        <h2>Stop losing leads while you sleep.</h2>
-        <p>We're opening Q3 onboarding for Telegram-first businesses in Uzbekistan and the CIS. Skip the trial and error — let the protocol close for you.</p>
+        <div class="pilot-badge"><span class="dot"></span> <span data-i18n="landing.pilot.badge">Q3 Pilot Access</span></div>
+        <h2 data-i18n="landing.pilot.title">Stop losing leads while you sleep.</h2>
+        <p data-i18n="landing.pilot.desc">We're opening Q3 onboarding for Telegram-first businesses.</p>
         <button type="button" class="btn-pilot btn-pilot-lg" data-book-pilot>
-          Secure Your Spot
+          <span data-i18n="landing.pilot.cta">Secure Your Spot</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
-        <div class="pilot-footnote">Cancel anytime</div>
+        <div class="pilot-footnote" data-i18n="landing.pilot.footnote">Cancel anytime</div>
       </div>
     </section>
 
@@ -213,7 +215,7 @@
         </div>
         <div class="landing-footer-status">
           <span class="dot"></span>
-          System Operational
+          <span data-i18n="landing.footer.status">System Operational</span>
         </div>
         <p class="landing-footer-copy">&copy; <span id="year"></span> Converza Systems</p>
       </div>

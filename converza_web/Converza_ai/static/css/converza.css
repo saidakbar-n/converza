@@ -142,6 +142,39 @@ body::before {
   gap: 8px;
 }
 
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.lang-switch button {
+  border: 0;
+  background: transparent;
+  color: var(--slate);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 6px 8px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.lang-switch button:hover {
+  color: var(--text-dark);
+}
+
+.lang-switch button.active {
+  background: var(--text-dark);
+  color: #fff;
+}
+
 .btn-nav-signin {
   display: inline-flex;
   align-items: center;

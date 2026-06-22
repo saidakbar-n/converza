@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Converza Dashboard</title>
   <link rel="stylesheet" href="/css/converza.css" />
+  <script src="/js/locales.js"></script>
+  <script src="/js/i18n.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     :root {
@@ -1241,20 +1243,25 @@
     <aside class="sidebar">
       <a href="/" class="brand"><div class="mark">C</div><span>Converza</span></a>
       <nav class="nav">
-        <button type="button" class="nav-btn active" data-view="setup"><span class="nav-icon">DM</span> DM Closer</button>
-        <button type="button" class="nav-btn" data-view="copilot" id="copilot-tab" disabled><span class="nav-icon">AI</span> Co-Pilot</button>
+        <button type="button" class="nav-btn active" data-view="setup"><span class="nav-icon">DM</span> <span data-i18n="app.nav.dmCloser">DM Closer</span></button>
+        <button type="button" class="nav-btn" data-view="copilot" id="copilot-tab" disabled><span class="nav-icon">AI</span> <span data-i18n="app.nav.copilot">Co-Pilot</span></button>
       </nav>
       <div class="sidebar-foot">
-        <div class="status-pill"><svg class="tg-icon" viewBox="0 0 24 24" fill="#229ED9" aria-hidden="true" focusable="false" width="16" height="16"><path d="M21.94 4.49 18.9 19.16c-.23 1.02-.84 1.27-1.7.79l-4.7-3.47-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.82 8.77-7.93c.38-.34-.08-.53-.6-.19l-10.84 6.83-4.67-1.46c-1.02-.32-1.04-1.02.21-1.5l18.26-7.04c.85-.31 1.59.2 1.31 1.47Z"/></svg><span class="dot" id="status-dot"></span><span id="status-text">Telegram orqali kiring</span></div>
+        <div class="status-pill"><svg class="tg-icon" viewBox="0 0 24 24" fill="#229ED9" aria-hidden="true" focusable="false" width="16" height="16"><path d="M21.94 4.49 18.9 19.16c-.23 1.02-.84 1.27-1.7.79l-4.7-3.47-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.82 8.77-7.93c.38-.34-.08-.53-.6-.19l-10.84 6.83-4.67-1.46c-1.02-.32-1.04-1.02.21-1.5l18.26-7.04c.85-.31 1.59.2 1.31 1.47Z"/></svg><span class="dot" id="status-dot"></span><span id="status-text" data-i18n="app.status.signIn">Telegram orqali kiring</span></div>
       </div>
     </aside>
     <main class="main">
       <div class="topbar">
-        <div class="topbar-title" id="topbar-title">DM Closer</div>
+        <div class="topbar-title" id="topbar-title" data-i18n="app.nav.dmCloser">DM Closer</div>
         <div class="topbar-end">
+          <div class="lang-switch" role="group" aria-label="Language">
+            <button type="button" data-lang="uz">UZ</button>
+            <button type="button" data-lang="ru">RU</button>
+            <button type="button" data-lang="en">EN</button>
+          </div>
           <div class="auth-user" id="auth-user">
-            <span id="auth-label">Kirgansiz</span>
-            <button type="button" id="logout-btn">Chiqish</button>
+            <span id="auth-label" data-i18n="app.auth.loggedIn">Kirgansiz</span>
+            <button type="button" id="logout-btn" data-i18n="app.auth.logout">Chiqish</button>
           </div>
         </div>
       </div>
@@ -1267,57 +1274,57 @@
         <div id="passport-workspace">
         <div class="headline">
           <div class="hero">
-            <h2>Brend pasporti</h2>
-            <p>DM Closer ishlashi uchun to'ldiring.</p>
+            <h2 data-i18n="app.passport.title">Brend pasporti</h2>
+            <p data-i18n="app.passport.subtitle">DM Closer ishlashi uchun to'ldiring.</p>
           </div>
           <div class="proof">
-            <strong>1-hafta</strong>
-            <span>Kechki xabarlarga javob, to'lovga olib kelish.</span>
+            <strong data-i18n="app.passport.proofTitle">1-hafta</strong>
+            <span data-i18n="app.passport.proofDesc">Kechki xabarlarga javob, to'lovga olib kelish.</span>
           </div>
         </div>
 
         <div class="preview">
-          <div class="metric"><strong id="metric-brand">0</strong><span>Brend maydonlari</span></div>
-          <div class="metric"><strong id="metric-pricing">0</strong><span>Narxlar</span></div>
-          <div class="metric"><strong id="metric-faq">0</strong><span>FAQ</span></div>
-          <div class="metric"><strong id="metric-objections">0</strong><span>E'tirozlar</span></div>
+          <div class="metric"><strong id="metric-brand">0</strong><span data-i18n="app.metrics.brand">Brend maydonlari</span></div>
+          <div class="metric"><strong id="metric-pricing">0</strong><span data-i18n="app.metrics.pricing">Narxlar</span></div>
+          <div class="metric"><strong id="metric-faq">0</strong><span data-i18n="app.metrics.faq">FAQ</span></div>
+          <div class="metric"><strong id="metric-objections">0</strong><span data-i18n="app.metrics.objections">E'tirozlar</span></div>
         </div>
 
         <div class="connection-panel" id="connection-panel" hidden>
-          <h3>Telegram Business</h3>
-          <p>DM Closer <strong>biznes hisobingiz</strong> orqali javob beradi.</p>
+          <h3 data-i18n="app.connection.title">Telegram Business</h3>
+          <p data-i18n="app.connection.desc">DM Closer biznes hisobingiz orqali javob beradi.</p>
           <div class="connection-pill off" id="connection-pill">
-            <span id="connection-status-text">Tekshirilmoqda...</span>
+            <span id="connection-status-text" data-i18n="app.connection.checking">Tekshirilmoqda...</span>
           </div>
           <div class="connection-pill off" id="subscription-pill" style="margin-top:8px;">
-            <span id="subscription-status-text">Obuna: tekshirilmoqda...</span>
+            <span id="subscription-status-text" data-i18n="app.connection.subChecking">Obuna: tekshirilmoqda...</span>
           </div>
           <div class="connection-pill off" id="payments-pill" style="margin-top:8px;">
-            <span id="payments-status-text">Mijozlar Click: tekshirilmoqda...</span>
+            <span id="payments-status-text" data-i18n="app.connection.payChecking">Mijozlar Click: tekshirilmoqda...</span>
           </div>
           <p style="margin-top:12px;font-size:13px;color:var(--muted);">
-            Sales bot: Sozlamalar → Business → Chatbots → <strong id="bot-username-hint" data-sales-bot>@ConverzaSales_bot</strong>
+            <span data-i18n="app.connection.salesBotHint">Sales bot: Sozlamalar → Business → Chatbots →</span> <strong id="bot-username-hint" data-sales-bot>@ConverzaSales_bot</strong>
           </p>
-          <p style="margin-top:8px;font-size:13px;color:var(--muted);">
-            Converza obunasi: <strong>@ConverzaApp_bot</strong> da /subscribe
+          <p style="margin-top:8px;font-size:13px;color:var(--muted);" data-i18n="app.connection.subscribeHint">
+            Converza obunasi: @ConverzaApp_bot da /subscribe
           </p>
         </div>
 
         <div class="panel" id="pdf-panel">
           <div class="panel-head">
             <div>
-              <h3>PDF dan to'ldirish</h3>
-              <p>Hujjat yuklang — pasport avtomatik yaratiladi.</p>
+              <h3 data-i18n="app.pdf.title">PDF dan to'ldirish</h3>
+              <p data-i18n="app.pdf.subtitle">Hujjat yuklang — pasport avtomatik yaratiladi.</p>
             </div>
           </div>
           <div class="pdf-drop" id="pdf-drop">
             <input type="file" id="pdf-input" accept="application/pdf,.pdf" multiple hidden />
-            <p id="pdf-drop-text">PDF fayllarni shu yerga tashlang yoki <span class="pdf-browse">tanlang</span></p>
+            <p id="pdf-drop-text"><span data-i18n="app.pdf.drop">PDF fayllarni shu yerga tashlang yoki</span> <span class="pdf-browse" data-i18n="app.pdf.browse">tanlang</span></p>
             <ul class="pdf-list" id="pdf-list"></ul>
           </div>
           <div class="actions">
-            <button type="button" class="secondary" id="pdf-clear">Tozalash</button>
-            <button type="button" class="primary" id="pdf-generate" disabled>PDF'dan yaratish</button>
+            <button type="button" class="secondary" id="pdf-clear" data-i18n="app.pdf.clear">Tozalash</button>
+            <button type="button" class="primary" id="pdf-generate" disabled data-i18n="app.pdf.generate">PDF'dan yaratish</button>
           </div>
           <div id="pdf-result" class="notice" hidden></div>
         </div>
@@ -1325,79 +1332,78 @@
         <form class="panel" id="passport-form">
           <div class="panel-head">
             <div>
-              <h3>Brend ma'lumotlari</h3>
+              <h3 data-i18n="app.passport.formTitle">Brend ma'lumotlari</h3>
             </div>
           </div>
 
           <div class="form">
             <div class="grid-2">
-              <label>Biznes nomi
-                <input name="brand_name" required placeholder="Converza" />
+              <label><span data-i18n="app.passport.brandName">Biznes nomi</span>
+                <input name="brand_name" required data-i18n-placeholder="app.placeholder.brandName" placeholder="Converza" />
               </label>
-              <label>Soha
-                <input name="industry" placeholder="Telegram sotuv avtomatlashtirish" />
+              <label><span data-i18n="app.passport.industry">Soha</span>
+                <input name="industry" data-i18n-placeholder="app.placeholder.industry" placeholder="Telegram sotuv avtomatlashtirish" />
               </label>
             </div>
             <div class="grid-2">
-              <label>Joylashuv
+              <label><span data-i18n="app.passport.location">Joylashuv</span>
                 <input name="target_location" value="O'zbekiston" />
               </label>
-              <label>Muloqot ohangi
+              <label><span data-i18n="app.passport.tone">Muloqot ohangi</span>
                 <select name="tone">
-                  <option>Samimiy, ishonchli va lo'nda</option>
-                  <option>Professional va to'g'ridan-to'g'ri</option>
-                  <option>Iliq va maslahatchi</option>
+                  <option value="Samimiy, ishonchli va lo'nda" data-i18n="app.tone.friendly">Samimiy, ishonchli va lo'nda</option>
+                  <option value="Professional va to'g'ridan-to'g'ri" data-i18n="app.tone.professional">Professional va to'g'ridan-to'g'ri</option>
+                  <option value="Iliq va maslahatchi" data-i18n="app.tone.warm">Iliq va maslahatchi</option>
                 </select>
               </label>
             </div>
 
-            <label>Asosiy taklif
-              <textarea name="core_offer" required placeholder="Biz bizneslarga kechki mijozlarni yo'qotmaslik uchun oddiy DM Closer sotamiz."></textarea>
+            <label><span data-i18n="app.passport.coreOffer">Asosiy taklif</span>
+              <textarea name="core_offer" required data-i18n-placeholder="app.placeholder.coreOffer" placeholder=""></textarea>
             </label>
-            <label>Maqsadli auditoriya
-              <textarea name="target_audience" required placeholder="Telegram orqali sotadigan va ish vaqtidan keyin mijozlarni yo'qotadigan o'zbek kichik bizneslari."></textarea>
+            <label><span data-i18n="app.passport.targetAudience">Maqsadli auditoriya</span>
+              <textarea name="target_audience" required data-i18n-placeholder="app.placeholder.audience" placeholder=""></textarea>
             </label>
-            <label>Closer eslatmalari
-              <textarea name="raw_notes" placeholder="Qaytarish, yetkazish, taqiqlangan mavzular."></textarea>
+            <label><span data-i18n="app.passport.rawNotes">Closer eslatmalari</span>
+              <textarea name="raw_notes" data-i18n-placeholder="app.placeholder.rawNotes" placeholder=""></textarea>
             </label>
 
             <div>
-              <label>Narxlar (Click uchun)</label>
+              <label data-i18n="app.passport.pricingLabel">Narxlar (Click uchun)</label>
               <div class="repeat-list" id="pricing-list"></div>
-              <button type="button" class="secondary" id="add-pricing">Narx qo'shish</button>
+              <button type="button" class="secondary" id="add-pricing" data-i18n="app.passport.addPricing">Narx qo'shish</button>
             </div>
             <div>
-              <label>FAQ</label>
+              <label data-i18n="app.passport.faqLabel">FAQ</label>
               <div class="repeat-list" id="faq-list"></div>
-              <button type="button" class="secondary" id="add-faq">Savol-javob qo'shish</button>
+              <button type="button" class="secondary" id="add-faq" data-i18n="app.passport.addFaq">Savol-javob qo'shish</button>
             </div>
             <div>
-              <label>Keng tarqalgan e'tirozlar</label>
+              <label data-i18n="app.passport.objectionsLabel">Keng tarqalgan e'tirozlar</label>
               <div class="repeat-list" id="objection-list"></div>
-              <button type="button" class="secondary" id="add-objection">E'tiroz qo'shish</button>
+              <button type="button" class="secondary" id="add-objection" data-i18n="app.passport.addObjection">E'tiroz qo'shish</button>
             </div>
 
             <div class="notice">
-              Org: <strong id="org-id-label">kirilmagan</strong>. DM Closer va Co-Pilot shu pasportdan foydalanadi.
+              Org: <strong id="org-id-label">kirilmagan</strong>. <span data-i18n="app.passport.orgNotice">DM Closer va Co-Pilot shu pasportdan foydalanadi.</span>
             </div>
             <div class="grid-2">
-              <label>Sotuv boti (Business DM)
+              <label><span data-i18n="app.passport.salesBot">Sotuv boti (Business DM)</span>
                 <input value="@ConverzaSales_bot" readonly data-sales-bot />
               </label>
-              <label>Click token (ixtiyoriy)
-                <input name="click_token" type="password" autocomplete="off" placeholder="BotFather → Payments → Click" />
+              <label><span data-i18n="app.passport.clickToken">Click token (ixtiyoriy)</span>
+                <input name="click_token" type="password" autocomplete="off" data-i18n-placeholder="app.placeholder.clickToken" placeholder="BotFather → Payments → Click" />
               </label>
             </div>
-            <p style="font-size:13px;color:var(--muted);margin:0;">
+            <p style="font-size:13px;color:var(--muted);margin:0;" data-i18n="app.passport.clickTokenHint">
               O'z Click provider tokeningizni qo'shsangiz, mijozlarga to'lov havolasi yuboriladi.
-              Token bermasangiz, DM Closer faqat matnli javob beradi.
             </p>
           </div>
 
           <div id="save-result" class="notice" hidden></div>
 
           <div class="actions">
-            <button type="submit" class="primary" id="save-btn">Saqlash</button>
+            <button type="submit" class="primary" id="save-btn" data-i18n="app.save">Saqlash</button>
           </div>
         </form>
         </div>
@@ -1406,18 +1412,18 @@
       <section class="content view" id="copilot-view">
         <div class="headline">
           <div class="hero">
-            <h2>Co-Pilot</h2>
-            <p>Strategiya va matnlar — brend pasportingiz asosida.</p>
+            <h2 data-i18n="app.copilot.title">Co-Pilot</h2>
+            <p data-i18n="app.copilot.subtitle">Strategiya va matnlar — brend pasportingiz asosida.</p>
           </div>
-          <div class="proof"><strong id="saved-brand">Tayyor</strong><span>Saqlangan pasport yuklangan.</span></div>
+          <div class="proof"><strong id="saved-brand" data-i18n="app.copilot.ready">Tayyor</strong><span data-i18n="app.copilot.loadedDesc">Saqlangan pasport yuklangan.</span></div>
         </div>
         <div class="chat-shell">
           <div id="messages">
-            <div class="bubble assistant">O'zbek, rus yoki ingliz tilida yozing — strategiya, matn, e'tirozlar yoki kontent rejasi bo'yicha yordam beraman.</div>
+            <div class="bubble assistant" data-i18n="app.copilot.welcome">O'zbek, rus yoki ingliz tilida yozing.</div>
           </div>
           <div class="composer">
-            <textarea id="message-input" placeholder="Co-Pilot'ga yozing..." spellcheck="true"></textarea>
-            <button class="primary" id="send-btn" type="button">Yuborish</button>
+            <textarea id="message-input" data-i18n-placeholder="app.copilot.placeholder" placeholder="Co-Pilot'ga yozing..." spellcheck="true"></textarea>
+            <button class="primary" id="send-btn" type="button" data-i18n="app.copilot.send">Yuborish</button>
           </div>
         </div>
       </section>
@@ -1425,6 +1431,10 @@
   </div>
 
   <script>
+    function t(key, vars) {
+      return window.ConverzaI18n?.t(key, vars) || key;
+    }
+
     const AUTH_STORAGE_KEY = "converza_auth";
     const state = {
       saved: false,
@@ -1459,20 +1469,41 @@
     }
 
     function apiHeaders(extra = {}) {
-      const headers = { ...extra };
+      const headers = { ...(window.ConverzaI18n?.apiLangHeader?.() || {}), ...extra };
       if (state.token) headers.Authorization = `Bearer ${state.token}`;
       return headers;
+    }
+
+    function refreshAuthLabel() {
+      if (!state.user) return;
+      const label = state.user.username ? `@${state.user.username}` : state.user.first_name;
+      document.getElementById("auth-label").textContent = `${label} ${t("app.auth.asUser")}`;
+    }
+
+    function refreshStatusText() {
+      if (!state.orgId) {
+        statusText.textContent = t("app.status.signIn");
+        return;
+      }
+      if (state.saved) {
+        statusText.textContent = t("app.status.saved");
+        statusDot.style.background = "var(--green)";
+      } else {
+        statusText.textContent = t("app.status.loggedIn");
+        statusDot.style.background = "var(--amber)";
+      }
     }
 
     function addPricing(tier = "", price = "", features = "") {
       const row = document.createElement("div");
       row.className = "repeat-row pricing";
       row.innerHTML = `
-        <input data-field="tier" placeholder="Telegram Pro" value="${escapeAttr(tier)}" />
-        <input data-field="price" placeholder="$30 yoki 375000 so'm" value="${escapeAttr(price)}" />
-        <input data-field="features" placeholder="kelgan xabarlarga javob berish, hisob-faktura yuborish" value="${escapeAttr(features)}" />
-        <button type="button" class="icon-btn" title="O'chirish">x</button>
+        <input data-field="tier" data-i18n-placeholder="app.placeholder.tier" placeholder="Telegram Pro" value="${escapeAttr(tier)}" />
+        <input data-field="price" data-i18n-placeholder="app.placeholder.price" placeholder="" value="${escapeAttr(price)}" />
+        <input data-field="features" data-i18n-placeholder="app.placeholder.features" placeholder="" value="${escapeAttr(features)}" />
+        <button type="button" class="icon-btn" data-i18n-title="app.remove" title="x">x</button>
       `;
+      window.ConverzaI18n?.applyTo(row);
       row.querySelector("button").addEventListener("click", () => { row.remove(); updateMetrics(); });
       document.getElementById("pricing-list").appendChild(row);
       row.querySelectorAll("input").forEach(input => input.addEventListener("input", updateMetrics));
@@ -1483,10 +1514,11 @@
       const row = document.createElement("div");
       row.className = "repeat-row";
       row.innerHTML = `
-        <input data-field="question" placeholder="Kechasi ham ishlaydimi?" value="${escapeAttr(question)}" />
-        <input data-field="answer" placeholder="Ha, closer 24/7 javob bera oladi." value="${escapeAttr(answer)}" />
-        <button type="button" class="icon-btn" title="O'chirish">x</button>
+        <input data-field="question" data-i18n-placeholder="app.placeholder.faqQ" placeholder="" value="${escapeAttr(question)}" />
+        <input data-field="answer" data-i18n-placeholder="app.placeholder.faqA" placeholder="" value="${escapeAttr(answer)}" />
+        <button type="button" class="icon-btn" data-i18n-title="app.remove" title="x">x</button>
       `;
+      window.ConverzaI18n?.applyTo(row);
       row.querySelector("button").addEventListener("click", () => { row.remove(); updateMetrics(); });
       document.getElementById("faq-list").appendChild(row);
       row.querySelectorAll("input").forEach(input => input.addEventListener("input", updateMetrics));
@@ -1497,10 +1529,11 @@
       const row = document.createElement("div");
       row.className = "repeat-row";
       row.innerHTML = `
-        <input data-field="objection" placeholder="Juda qimmat" value="${escapeAttr(objection)}" />
-        <input data-field="response" placeholder="Bitta qaytarilgan savdo rejaning narxini qoplaydi." value="${escapeAttr(response)}" />
-        <button type="button" class="icon-btn" title="O'chirish">x</button>
+        <input data-field="objection" data-i18n-placeholder="app.placeholder.objection" placeholder="" value="${escapeAttr(objection)}" />
+        <input data-field="response" data-i18n-placeholder="app.placeholder.response" placeholder="" value="${escapeAttr(response)}" />
+        <button type="button" class="icon-btn" data-i18n-title="app.remove" title="x">x</button>
       `;
+      window.ConverzaI18n?.applyTo(row);
       row.querySelector("button").addEventListener("click", () => { row.remove(); updateMetrics(); });
       document.getElementById("objection-list").appendChild(row);
       row.querySelectorAll("input").forEach(input => input.addEventListener("input", updateMetrics));
@@ -1525,11 +1558,9 @@
       state.token = token || null;
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user, orgId, token: state.token }));
       document.getElementById("auth-user").classList.add("visible");
-      const label = user.username ? `@${user.username}` : user.first_name;
-      document.getElementById("auth-label").textContent = `${label} sifatida kirdingiz`;
+      refreshAuthLabel();
       document.getElementById("org-id-label").textContent = orgId;
-      statusText.textContent = state.saved ? "Saqlangan" : "Kirildi";
-      statusDot.style.background = state.saved ? "var(--green)" : "var(--amber)";
+      refreshStatusText();
       document.getElementById("connection-panel").hidden = false;
       loadConnectionStatus();
     }
@@ -1581,32 +1612,32 @@
         const data = await response.json();
         if (data.connected) {
           pill.className = "connection-pill on";
-          label.textContent = "Biznes ulanishi faol";
+          label.textContent = t("app.connection.active");
         } else {
           pill.className = "connection-pill off";
-          label.textContent = "Biznes ulanishi yo'q";
+          label.textContent = t("app.connection.inactive");
         }
         if (data.subscription_active) {
           subPill.className = "connection-pill on";
-          subLabel.textContent = "Converza obunasi faol";
+          subLabel.textContent = t("app.connection.subActive");
         } else {
           subPill.className = "connection-pill off";
-          subLabel.textContent = "Obuna yo'q — @ConverzaApp_bot /subscribe";
+          subLabel.textContent = t("app.connection.subInactive");
         }
         if (data.payments_enabled) {
           paymentsPill.className = "connection-pill on";
-          paymentsLabel.textContent = "Mijozlar Click to'lovi yoqilgan";
+          paymentsLabel.textContent = t("app.connection.payActive");
         } else {
           paymentsPill.className = "connection-pill off";
-          paymentsLabel.textContent = "Mijozlar Click yo'q (ixtiyoriy)";
+          paymentsLabel.textContent = t("app.connection.payInactive");
         }
       } catch (_) {
         pill.className = "connection-pill off";
-        label.textContent = "Holatni yuklab bo'lmadi";
+        label.textContent = t("app.connection.statusFailed");
         subPill.className = "connection-pill off";
-        subLabel.textContent = "Obuna holati noma'lum";
+        subLabel.textContent = t("app.connection.subUnknown");
         paymentsPill.className = "connection-pill off";
-        paymentsLabel.textContent = "Click holati noma'lum";
+        paymentsLabel.textContent = t("app.connection.payUnknown");
       }
     }
 
@@ -1692,9 +1723,9 @@
         core_offer: passport.core_offer || ""
       };
       enableCopilotTabs(true);
-      statusText.textContent = "Yuklandi";
+      statusText.textContent = t("app.status.loaded");
       statusDot.style.background = "var(--green)";
-      document.getElementById("saved-brand").textContent = passport.brand_name || "Tayyor";
+      document.getElementById("saved-brand").textContent = passport.brand_name || t("app.copilot.ready");
       updateMetrics();
     }
 
@@ -1738,21 +1769,21 @@
     async function savePassport(event) {
       event.preventDefault();
       if (!state.orgId) {
-        showSave("Avval Telegram orqali kiring.", "error");
+        showSave(t("app.error.signInFirst"), "error");
         return;
       }
       const passport = collectPassport();
       if (!passport.brand_name || !passport.target_audience || !passport.core_offer) {
-        showSave("Biznes nomi, auditoriya va taklif kerak.", "error");
+        showSave(t("app.error.requiredFields"), "error");
         return;
       }
       if (!passport.pricing.length) {
-        showSave("Kamida bitta narx qo'shing.", "error");
+        showSave(t("app.error.pricingRequired"), "error");
         return;
       }
 
       saveBtn.disabled = true;
-      showSave("Saqlanmoqda...", "");
+      showSave(t("app.save.saving"), "");
       try {
         const response = await fetch("/api/dm-closer/onboard", {
           method: "POST",
@@ -1773,10 +1804,10 @@
         };
         enableCopilotTabs(true);
         await refreshCopilotStatus();
-        statusText.textContent = "Saqlandi";
+        statusText.textContent = t("app.status.saved");
         statusDot.style.background = "var(--green)";
         document.getElementById("saved-brand").textContent = passport.brand_name;
-        showSave(`Saqlandi (${passport.pricing.length} narx).`, "success");
+        showSave(`${t("app.save.success")} (${passport.pricing.length}).`, "success");
         loadConnectionStatus();
       } catch (error) {
         showSave(error.message, "error");
@@ -1787,10 +1818,13 @@
 
     function parseApiError(result, fallback) {
       const detail = result?.detail;
-      if (!detail) return fallback || "So'rov bajarilmadi.";
+      if (!detail) return fallback || t("app.error.requestFailed");
       if (typeof detail === "string") {
+        if (window.ConverzaI18n?.translateApiError) {
+          return window.ConverzaI18n.translateApiError(detail, fallback);
+        }
         if (detail.includes("Could not find") && detail.includes("column")) {
-          return "Ma'lumotlar bazasi yangilanmagan. Administratorga xabar bering yoki keyinroq qayta urinib ko'ring.";
+          return t("app.error.dbMigration");
         }
         if (detail.startsWith("{") && detail.includes("message")) {
           try {
@@ -1820,7 +1854,7 @@
       document.querySelectorAll(".view").forEach(section => {
         section.classList.toggle("active", section.id === `${view}-view`);
       });
-      const titles = { setup: "DM Closer", copilot: "Co-Pilot" };
+      const titles = { setup: t("app.nav.dmCloser"), copilot: t("app.nav.copilot") };
       const titleEl = document.getElementById("topbar-title");
       if (titleEl) titleEl.textContent = titles[view] || "Converza";
     }
@@ -1879,11 +1913,11 @@
       const text = input.value.trim();
       if (!text) return;
       if (!state.orgId) {
-        appendBubble("error", "Avval Telegram orqali kiring.");
+        appendBubble("error", t("app.copilot.errorSignIn"));
         return;
       }
       if (!state.brandId) {
-        appendBubble("error", "Avval pasportni saqlang.");
+        appendBubble("error", t("app.copilot.errorSaveFirst"));
         return;
       }
       input.value = "";
@@ -2012,12 +2046,12 @@
 
     async function generateFromPdf() {
       if (!state.orgId) {
-        showPdfResult("Avval Telegram orqali kiring.", "error");
+        showPdfResult(t("app.copilot.errorSignIn"), "error");
         return;
       }
       if (!pdfState.files.length) return;
       pdfGenerate.disabled = true;
-      showPdfResult(`${pdfState.files.length} ta hujjat tahlil qilinmoqda... ⏳`, "");
+      showPdfResult(`${pdfState.files.length} ${t("app.pdf.analyzing")}`, "");
       try {
         const fd = new FormData();
         pdfState.files.forEach(file => fd.append("files", file, file.name));
@@ -2030,11 +2064,11 @@
         if (!response.ok) throw new Error(parseApiError(result, response.statusText));
         populateForm(result.passport);
         showPdfResult(
-          `${result.files_processed} ta PDF dan yaratildi. Tekshirib saqlang.`,
+          `${result.files_processed} ${t("app.pdf.success")}`,
           "success"
         );
       } catch (error) {
-        showPdfResult(`Xatolik: ${error.message}`, "error");
+        showPdfResult(`${t("app.pdf.errorPrefix")} ${error.message}`, "error");
       } finally {
         pdfGenerate.disabled = pdfState.files.length === 0;
       }
@@ -2052,6 +2086,15 @@
     });
     pdfClear.addEventListener("click", () => { pdfState.files = []; renderPdfList(); pdfResult.hidden = true; });
     pdfGenerate.addEventListener("click", generateFromPdf);
+
+    document.addEventListener("converza:langchange", () => {
+      window.ConverzaI18n?.applyTo(document);
+      refreshAuthLabel();
+      refreshStatusText();
+      if (state.orgId) loadConnectionStatus();
+      const active = document.querySelector(".nav-btn.active")?.dataset.view || "setup";
+      switchView(active);
+    });
 
     async function bootstrap() {
       const restored = await restoreSession();

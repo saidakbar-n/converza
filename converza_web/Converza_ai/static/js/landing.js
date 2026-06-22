@@ -2,43 +2,54 @@
  * Landing page interactive components.
  */
 (function () {
-  // Card shuffler
-  const cards = [
-    { id: 1, title: "Node 01: Brand Passport", status: "ACTIVE" },
-    { id: 2, title: "Node 08: DM Response Engine", status: "SYNCHING" },
-    { id: 3, title: "Node 19: Click Payments", status: "READY" }
-  ];
+  function t(key) {
+    return window.ConverzaI18n?.t(key) || key;
+  }
+
+  function cardData() {
+    return [
+      { id: 1, titleKey: "landing.shuffle.card1", statusKey: "landing.shuffle.statusActive" },
+      { id: 2, titleKey: "landing.shuffle.card2", statusKey: "landing.shuffle.statusSyncing" },
+      { id: 3, titleKey: "landing.shuffle.card3", statusKey: "landing.shuffle.statusReady" }
+    ];
+  }
+
   let order = [0, 1, 2];
   const stage = document.getElementById("shuffler-stage");
+
+  function renderCards() {
+    if (!stage) return;
+    const cards = cardData();
+    stage.innerHTML = "";
+    order.forEach((idx, i) => {
+      const card = cards[idx];
+      const el = document.createElement("div");
+      el.className = "shuffle-card";
+      const isTop = i === 2;
+      const isMid = i === 1;
+      el.style.opacity = isTop ? "1" : isMid ? "0.8" : "0.4";
+      el.style.transform = `translateY(${isTop ? 0 : isMid ? -15 : -30}px) scale(${isTop ? 1 : isMid ? 0.95 : 0.9})`;
+      el.style.zIndex = String(i);
+      const status = t(card.statusKey);
+      el.innerHTML = `
+        <div class="card-head">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+          <span class="status ${isTop ? "active" : "idle"}">${status}</span>
+        </div>
+        <div class="title">${t(card.titleKey)}</div>`;
+      stage.appendChild(el);
+    });
+  }
+
   if (stage) {
-    function renderCards() {
-      stage.innerHTML = "";
-      order.forEach((idx, i) => {
-        const card = cards[idx];
-        const el = document.createElement("div");
-        el.className = "shuffle-card";
-        const isTop = i === 2;
-        const isMid = i === 1;
-        el.style.opacity = isTop ? "1" : isMid ? "0.8" : "0.4";
-        el.style.transform = `translateY(${isTop ? 0 : isMid ? -15 : -30}px) scale(${isTop ? 1 : isMid ? 0.95 : 0.9})`;
-        el.style.zIndex = String(i);
-        el.innerHTML = `
-          <div class="card-head">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
-            <span class="status ${isTop ? "active" : "idle"}">${card.status}</span>
-          </div>
-          <div class="title">${card.title}</div>`;
-        stage.appendChild(el);
-      });
-    }
     renderCards();
     setInterval(() => {
       order = [order[2], order[0], order[1]];
       renderCards();
     }, 3000);
+    document.addEventListener("converza:langchange", renderCards);
   }
 
-  // Typewriter terminal
   const terminal = document.getElementById("terminal-text");
   if (terminal) {
     const fullText = "SYS.COMMAND\n> Init DM closer bounds\n[OK] Brand passport loaded\n> Generating 24/7 replies\n[████████░░] 80%\n> EST. Go-live: 24h\n\nSTATUS: ONLINE";
@@ -60,7 +71,6 @@
     startTyping();
   }
 
-  // Scheduler cursor animation
   const cursor = document.getElementById("scheduler-cursor");
   const cells = document.querySelectorAll(".week-grid .day-cell");
   if (cursor && cells.length) {

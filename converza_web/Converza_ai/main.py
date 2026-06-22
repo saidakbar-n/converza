@@ -31,7 +31,8 @@ from services.brand_passport import (
     sync_organization,
     upsert_passport,
 )
-from services.copilot_readiness import assess_copilot_readiness, readiness_label as copilot_readiness_label
+from services.copilot_readiness import assess_copilot_readiness
+from services.i18n import copilot_reason_label, lang_from_request, t
 from services.payments import payments_configured
 from services.subscriptions import is_subscription_active
 from services.access_requests import (
@@ -252,6 +253,8 @@ def build_context_block(
 async def stream_response(
     messages: list[dict],
     conversation_id: str,
+    *,
+    system_prompt: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Streams LLM response as SSE events via Hermes Agent API server.
@@ -264,7 +267,7 @@ async def stream_response(
     try:
         async for token in stream_gemini(
             messages=messages,
-            system_prompt=SYSTEM_PROMPT,
+            system_prompt=system_prompt or SYSTEM_PROMPT,
         ):
             payload = json.dumps({"token": token, "conversation_id": conversation_id})
             yield f"data: {payload}\n\n"
@@ -410,34 +413,35 @@ async def proxy_webhook_hitl(request: Request):
     return await _proxy_to_bot("hitl", request)
 
 
-def _validate_access_request_body(body: AccessRequestCreate) -> None:
+def _validate_access_request_body(body: AccessRequestCreate, lang: str) -> None:
     if len(body.full_name.strip()) < 2:
-        raise HTTPException(status_code=400, detail="To'liq ismingizni kiriting.")
+        raise HTTPException(status_code=400, detail=t(lang, "access.full_name_required"))
     if len(body.business_name.strip()) < 2:
-        raise HTTPException(status_code=400, detail="Biznes nomini kiriting.")
+        raise HTTPException(status_code=400, detail=t(lang, "access.business_required"))
     if len(body.message.strip()) < 30:
         raise HTTPException(
             status_code=400,
-            detail="Qiynayotgan muammoingizni kamida 30 belgi bilan yozing.",
+            detail=t(lang, "access.message_short"),
         )
     phone_digits = re.sub(r"\D", "", body.contact)
     if len(phone_digits) < 9:
         raise HTTPException(
             status_code=400,
-            detail="To'g'ri telefon raqamini kiriting (masalan: +998901234567).",
+            detail=t(lang, "access.phone_invalid"),
         )
     username = (body.telegram_username or "").strip().lstrip("@")
     if len(username) < 3:
         raise HTTPException(
             status_code=400,
-            detail="Telegram @username majburiy — login shu orqali bog'lanadi.",
+            detail=t(lang, "access.telegram_required"),
         )
 
 
 @app.post("/api/access-request")
-async def submit_access_request(body: AccessRequestCreate):
+async def submit_access_request(body: AccessRequestCreate, request: Request):
     """Public — submit a request before Telegram login is allowed."""
-    _validate_access_request_body(body)
+    lang = lang_from_request(request)
+    _validate_access_request_body(body, lang)
     try:
         saved = create_request(
             full_name=body.full_name,
@@ -457,11 +461,12 @@ async def submit_access_request(body: AccessRequestCreate):
 
 
 @app.get("/api/access-request/{request_id}")
-async def access_request_status(request_id: str):
+async def access_request_status(request_id: str, request: Request):
     """Public — poll approval status by request id."""
+    lang = lang_from_request(request)
     row = get_request(request_id)
     if not row:
-        raise HTTPException(status_code=404, detail="So'rov topilmadi.")
+        raise HTTPException(status_code=404, detail=t(lang, "access.not_found"))
     return {
         "request_id": row["id"],
         "status": row["status"],
@@ -472,11 +477,12 @@ async def access_request_status(request_id: str):
 
 
 @app.post("/api/auth/telegram")
-async def telegram_auth(auth_data: TelegramAuthData):
+async def telegram_auth(auth_data: TelegramAuthData, request: Request):
+    lang = lang_from_request(request)
     data_dict = auth_data.model_dump(exclude_none=True)
     if not verify_telegram_auth(data_dict.copy()):
         raise HTTPException(
-            status_code=403, detail="Telegram autentifikatsiya kaliti noto'g'ri."
+            status_code=403, detail=t(lang, "auth.telegram_invalid")
         )
 
     org_id = str(auth_data.id)
@@ -485,10 +491,7 @@ async def telegram_auth(auth_data: TelegramAuthData):
     if not is_admin and not is_user_approved(org_id, auth_data.username):
         raise HTTPException(
             status_code=403,
-            detail=(
-                "Kirish uchun admin tasdig'i kerak. "
-                "Avval kirish so'rovini yuboring va tasdiqlanishini kuting."
-            ),
+            detail=t(lang, "auth.approval_required"),
         )
 
     sync_organization(org_id)
@@ -675,14 +678,15 @@ def _resolve_client_context(
 
 
 @app.get("/api/copilot/status")
-async def copilot_status(user: Annotated[dict, Depends(get_current_user)]):
+async def copilot_status(user: Annotated[dict, Depends(get_current_user)], request: Request):
+    lang = lang_from_request(request)
     org_id = str(user["org_id"])
     ready, reason = assess_copilot_readiness(org_id)
     passport = fetch_passport_by_org(org_id) if ready else None
     return {
         "org_id": org_id,
         "ready": ready,
-        "reason": copilot_readiness_label(reason) if reason else None,
+        "reason": copilot_reason_label(lang, reason) if reason else None,
         "brand_id": passport.get("id") if passport else None,
         "llm": "groq" if groq_configured() else ("hermes" if hermes_configured() else "none"),
     }
@@ -692,19 +696,27 @@ async def copilot_status(user: Annotated[dict, Depends(get_current_user)]):
 async def chat(
     request: ChatRequest,
     user: Annotated[dict, Depends(get_current_user)],
+    http_request: Request,
 ):
+    from converza_agent.language_detect import language_instruction
+
+    lang = lang_from_request(http_request)
     org_id = str(user["org_id"])
     ready, reason = assess_copilot_readiness(org_id)
     if not ready:
         raise HTTPException(
             status_code=403,
-            detail=f"Co-Pilot hali tayyor emas: {copilot_readiness_label(reason)}",
+            detail=t(
+                lang,
+                "copilot.not_ready",
+                reason=copilot_reason_label(lang, reason),
+            ),
         )
 
     if not groq_configured() and not hermes_configured():
         raise HTTPException(
             status_code=503,
-            detail="LLM sozlanmagan. GROQ_API_KEY yoki HERMES_API_KEY kerak.",
+            detail=t(lang, "copilot.llm_missing"),
         )
 
     conversation_id = str(uuid.uuid4())
@@ -726,8 +738,12 @@ async def chat(
     else:
         messages = [{"role": "user", "content": context_block + request.message}]
 
+    copilot_system = (
+        f"{SYSTEM_PROMPT}\n\n{language_instruction(lang, uz_script='latin')}"
+    )
+
     return StreamingResponse(
-        stream_response(messages, conversation_id),
+        stream_response(messages, conversation_id, system_prompt=copilot_system),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

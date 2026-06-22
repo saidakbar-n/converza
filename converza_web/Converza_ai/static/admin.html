@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Converza Admin — Kirish so'rovlari</title>
+  <title>Converza Admin</title>
+  <link rel="stylesheet" href="/css/converza.css" />
+  <script src="/js/locales.js"></script>
+  <script src="/js/i18n.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; }
@@ -82,40 +85,56 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Converza Admin</h1>
-    <p class="sub">Foydalanuvchi kirish so'rovlarini tasdiqlang yoki rad eting. Telegram botda ham: /admin, /pending, /approve, /reject.</p>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:8px;">
+      <div>
+        <h1 data-i18n="admin.title">Converza Admin</h1>
+        <p class="sub" data-i18n="admin.sub">Approve or reject access requests.</p>
+      </div>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" data-lang="uz">UZ</button>
+        <button type="button" data-lang="ru">RU</button>
+        <button type="button" data-lang="en">EN</button>
+      </div>
+    </div>
 
     <div class="card auth" id="auth-card">
       <div id="login-area">
-        <span>Admin sifatida Telegram orqali kiring:</span>
+        <span data-i18n="admin.loginPrompt">Sign in with Telegram as admin:</span>
         <div id="telegram-login"></div>
       </div>
       <div id="user-area" hidden>
         <span class="auth-user" id="admin-label"></span>
-        <button type="button" id="logout-btn">Chiqish</button>
+        <button type="button" id="logout-btn" data-i18n="admin.logout">Chiqish</button>
       </div>
       <p class="error" id="auth-error" hidden></p>
     </div>
 
     <div class="card" id="panel" hidden>
       <div class="tabs">
-        <button class="tab active" data-filter="pending">Kutilmoqda</button>
-        <button class="tab" data-filter="approved">Tasdiqlangan</button>
-        <button class="tab" data-filter="rejected">Rad etilgan</button>
-        <button class="tab" data-filter="">Barchasi</button>
-        <button type="button" id="refresh-btn" style="margin-left:auto;">Yangilash</button>
+        <button class="tab active" data-filter="pending" data-i18n="admin.tab.pending">Kutilmoqda</button>
+        <button class="tab" data-filter="approved" data-i18n="admin.tab.approved">Tasdiqlangan</button>
+        <button class="tab" data-filter="rejected" data-i18n="admin.tab.rejected">Rad etilgan</button>
+        <button class="tab" data-filter="" data-i18n="admin.tab.all">Barchasi</button>
+        <button type="button" id="refresh-btn" style="margin-left:auto;" data-i18n="admin.refresh">Yangilash</button>
       </div>
       <div id="requests"></div>
     </div>
   </div>
 
   <script>
+    function t(key, vars) {
+      return window.ConverzaI18n?.t(key, vars) || key;
+    }
+
     const ADMIN_AUTH_KEY = "converza_admin_auth";
     let token = null;
     let filter = "pending";
 
     function headers() {
-      return token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : {};
+      const base = window.ConverzaI18n?.apiLangHeader?.() || {};
+      return token
+        ? { ...base, Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+        : base;
     }
 
     function setLoggedIn(user, t) {
@@ -157,13 +176,13 @@
       try {
         const response = await fetch("/api/auth/telegram", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...(window.ConverzaI18n?.apiLangHeader?.() || {}) },
           body: JSON.stringify(user)
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.detail || response.statusText);
         if (result.role !== "admin") {
-          throw new Error("Bu hisob admin ro'yxatida emas. ADMIN_TELEGRAM_IDS ni tekshiring.");
+          throw new Error(t("admin.error.notAdmin"));
         }
         setLoggedIn({ first_name: result.first_name, username: result.username }, result.token);
       } catch (e) {
@@ -174,12 +193,13 @@
 
     function formatDate(value) {
       if (!value) return "—";
-      return new Date(value).toLocaleString("uz-UZ");
+      const locale = { uz: "uz-UZ", ru: "ru-RU", en: "en-US" }[window.ConverzaI18n?.getLang?.() || "uz"] || "uz-UZ";
+      return new Date(value).toLocaleString(locale);
     }
 
     async function loadRequests() {
       const list = document.getElementById("requests");
-      list.innerHTML = '<div class="empty">Yuklanmoqda...</div>';
+      list.innerHTML = `<div class="empty">${t("admin.loading")}</div>`;
       const url = filter ? `/api/admin/access-requests?status=${filter}` : "/api/admin/access-requests";
       try {
         const response = await fetch(url, { headers: headers() });
@@ -187,7 +207,7 @@
         if (!response.ok) throw new Error(data.detail || response.statusText);
         const rows = data.requests || [];
         if (!rows.length) {
-          list.innerHTML = '<div class="empty">So\'rovlar yo\'q.</div>';
+          list.innerHTML = `<div class="empty">${t("admin.empty")}</div>`;
           return;
         }
         list.innerHTML = "";
@@ -198,26 +218,26 @@
             <h3>${escape(row.business_name || "—")}</h3>
             <div class="owner">${escape(row.full_name || "—")}</div>
             <dl class="field-row">
-              <dt>Telefon</dt><dd>${escape(row.contact || "—")}</dd>
-              <dt>Telegram</dt><dd>@${escape(row.telegram_username || "—")}</dd>
-              <dt>Yuborilgan</dt><dd>${formatDate(row.created_at)}</dd>
-              <dt>Holat</dt><dd>${escape(row.status || "—")}</dd>
+              <dt>${t("admin.field.phone")}</dt><dd>${escape(row.contact || "—")}</dd>
+              <dt>${t("admin.field.telegram")}</dt><dd>@${escape(row.telegram_username || "—")}</dd>
+              <dt>${t("admin.field.submitted")}</dt><dd>${formatDate(row.created_at)}</dd>
+              <dt>${t("admin.field.status")}</dt><dd>${escape(row.status || "—")}</dd>
             </dl>
-            <div class="description"><strong>Muammo / og'riq nuqtasi:</strong><br>${escape(row.message || "—")}</div>
-            ${row.review_note ? `<div class="meta">Admin izohi: ${escape(row.review_note)}</div>` : ""}
+            <div class="description"><strong>${t("admin.painPoint")}</strong><br>${escape(row.message || "—")}</div>
+            ${row.review_note ? `<div class="meta">${t("admin.reviewNote")} ${escape(row.review_note)}</div>` : ""}
           `;
           if (row.status === "pending") {
             const actions = document.createElement("div");
             actions.className = "actions";
             const note = document.createElement("input");
-            note.placeholder = "Izoh (ixtiyoriy)";
+            note.placeholder = t("admin.notePlaceholder");
             const approve = document.createElement("button");
             approve.className = "approve";
-            approve.textContent = "Tasdiqlash";
+            approve.textContent = t("admin.approve");
             approve.onclick = () => review(row.id, "approve", note.value);
             const reject = document.createElement("button");
             reject.className = "reject";
-            reject.textContent = "Rad etish";
+            reject.textContent = t("admin.reject");
             reject.onclick = () => review(row.id, "reject", note.value);
             actions.append(note, approve, reject);
             el.appendChild(actions);
@@ -259,6 +279,10 @@
     });
     document.getElementById("refresh-btn").addEventListener("click", loadRequests);
     document.getElementById("logout-btn").addEventListener("click", logout);
+    document.addEventListener("converza:langchange", () => {
+      window.ConverzaI18n?.applyTo(document);
+      if (token) loadRequests();
+    });
 
     (async function bootstrap() {
       const cached = localStorage.getItem(ADMIN_AUTH_KEY);
