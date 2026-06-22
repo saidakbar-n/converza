@@ -20,6 +20,12 @@ from services.payments import (
     payment_unavailable_prospect_message,
 )
 from converza_agent.config import hermes_model
+from converza_agent.language_detect import (
+    FALLBACK_REPLY,
+    LANGUAGE_INSTRUCTIONS,
+    LANGUAGE_LABELS,
+    detect_reply_language,
+)
 from converza_agent.runtime import run_dm_closer_json
 
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
@@ -76,11 +82,23 @@ async def generate_reply(
     history = await get_conversation_history(org_id, prospect_id, limit=8)
     payments_enabled = is_configured_provider_token(click_token)
 
+    reply_language = detect_reply_language(inbound_text)
+    logger.info(
+        "DM closer reply_language=%s org_id=%s prospect_id=%s inbound=%r",
+        reply_language,
+        org_id,
+        prospect_id,
+        inbound_text[:80],
+    )
+
     payload = {
         "org_id": org_id,
         "prospect_id": prospect_id,
         "chat_id": chat_id,
         "inbound_text": inbound_text,
+        "reply_language": reply_language,
+        "reply_language_label": LANGUAGE_LABELS[reply_language],
+        "reply_language_instruction": LANGUAGE_INSTRUCTIONS[reply_language],
         "brand_context": _trim_brand_context(brand),
         "message_history": history,
         "payments_enabled": payments_enabled,
@@ -89,7 +107,11 @@ async def generate_reply(
     draft_json: dict | None = None
     user_content = json.dumps(payload, ensure_ascii=False)
     try:
-        draft_json = await run_dm_closer_json(user_content, max_tokens=600)
+        draft_json = await run_dm_closer_json(
+            user_content,
+            max_tokens=600,
+            reply_language=reply_language,
+        )
     except Exception as exc:
         logger.exception(
             "DM closer LLM failed org_id=%s prospect_id=%s: %s",
@@ -106,13 +128,13 @@ async def generate_reply(
                 org_id,
                 list(draft_json.keys()),
             )
-            draft = "Kechirasiz, men hozir javob bera olmayman."
+            draft = FALLBACK_REPLY.get(reply_language, FALLBACK_REPLY["uz"])
         condition = draft_json.get("client_condition", "cold")
         reason = draft_json.get("condition_reason", "")
         invoice_required = bool(draft_json.get("invoice_required"))
         invoice_tier = draft_json.get("invoice_tier")
     else:
-        draft = "Kechirasiz, men hozir javob bera olmayman."
+        draft = FALLBACK_REPLY.get(reply_language, FALLBACK_REPLY["uz"])
         condition = "cold"
         reason = "hermes_error"
         invoice_required = False

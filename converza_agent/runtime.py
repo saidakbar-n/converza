@@ -68,6 +68,7 @@ async def run_dm_closer_json(
     *,
     max_tokens: int = 600,
     temperature: float = 0.3,
+    reply_language: str | None = None,
 ) -> dict:
     """
     DM Closer JSON reply.
@@ -77,8 +78,17 @@ async def run_dm_closer_json(
     """
     from converza_agent.closer_schema import normalize_closer_json
     from converza_agent.groq_client import groq_complete_json, groq_configured
+    from converza_agent.language_detect import LANGUAGE_INSTRUCTIONS
+    from converza_agent.prompts.language import DM_CLOSER_LANGUAGE_RULE
 
-    system = load_skill_prompt("dm-closer")
+    lang = reply_language or "uz"
+    lang_instruction = LANGUAGE_INSTRUCTIONS.get(lang, LANGUAGE_INSTRUCTIONS["uz"])
+
+    system = (
+        f"{DM_CLOSER_LANGUAGE_RULE}\n\n"
+        f"{lang_instruction}\n\n"
+        f"{load_skill_prompt('dm-closer')}"
+    )
     schema_hint = (
         "\n\nOUTPUT SCHEMA (exact keys only — no response, confidence, intent, or extra fields):\n"
         '{"reply":"...","client_condition":"cold|warm|purchasing|closed",'
