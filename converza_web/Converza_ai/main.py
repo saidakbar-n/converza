@@ -11,6 +11,7 @@ import httpx
 from converza_agent.prompts.copilot import COPILOT_SYSTEM_PROMPT
 from converza_agent.client import HermesError, get_hermes_client
 from converza_agent.config import hermes_configured
+from converza_agent.groq_client import groq_configured
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,6 +31,7 @@ from services.brand_passport import (
     sync_organization,
     upsert_passport,
 )
+from services.copilot_readiness import assess_copilot_readiness, readiness_label as copilot_readiness_label
 from services.payments import payments_configured
 from services.subscriptions import is_subscription_active
 from services.access_requests import (
@@ -229,6 +231,8 @@ async def stream_response(
         error_msg = str(e)
         if "401" in error_msg or "auth" in error_msg.lower() or "HERMES_API_KEY" in error_msg:
             yield f"data: {json.dumps({'error': 'Hermes API kaliti notog\u02bcri. HERMES_API_KEY ni tekshiring.'})}\n\n"
+        elif "GROQ_API_KEY" in error_msg or "Groq" in error_msg:
+            yield f"data: {json.dumps({'error': 'Groq API xatosi. GROQ_API_KEY ni tekshiring.'})}\n\n"
         elif "429" in error_msg or "rate" in error_msg.lower():
             yield f"data: {json.dumps({'error': 'Soʻrovlar chegarasi tugadi. Biroz kutib, qayta urinib koʻring.'})}\n\n"
         else:
@@ -256,22 +260,26 @@ async def ready():
             checks[key] = "missing"
             ok = False
 
-    if hermes_configured():
+    if groq_configured():
+        checks["GROQ_API_KEY"] = "ok"
+    elif hermes_configured():
         checks["HERMES_API_KEY"] = "ok"
     else:
-        checks["HERMES_API_KEY"] = "missing"
+        checks["llm"] = "missing (set GROQ_API_KEY or HERMES_API_KEY)"
         if is_production():
             ok = False
 
     if hermes_configured():
+        if groq_configured() and checks.get("HERMES_API_KEY") != "ok":
+            checks["HERMES_API_KEY"] = "ok (optional — Groq primary)"
         try:
             reachable = await get_hermes_client().ping()
             checks["hermes"] = "ok" if reachable else "unreachable"
-            if is_production() and not reachable:
+            if is_production() and not reachable and not groq_configured():
                 ok = False
         except Exception as exc:
             checks["hermes"] = f"error: {exc}"
-            if is_production():
+            if is_production() and not groq_configured():
                 ok = False
 
     try:
@@ -606,12 +614,32 @@ async def get_brand_passport_by_org(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-def _resolve_client_context(request: ChatRequest) -> ClientContext:
+def _resolve_client_context(request: ChatRequest, org_id: str) -> ClientContext:
     if request.brand_id:
         passport = fetch_passport_by_id(request.brand_id)
-        if passport:
-            return ClientContext(**passport_to_client_context(passport))
+        if not passport:
+            raise HTTPException(status_code=404, detail="Brend pasporti topilmadi.")
+        if str(passport.get("org_id")) != str(org_id):
+            raise HTTPException(
+                status_code=403,
+                detail="Bu pasport sizning hisobingizga tegishli emas.",
+            )
+        return ClientContext(**passport_to_client_context(passport))
     return request.client_context
+
+
+@app.get("/api/copilot/status")
+async def copilot_status(user: Annotated[dict, Depends(get_current_user)]):
+    org_id = str(user["org_id"])
+    ready, reason = assess_copilot_readiness(org_id)
+    passport = fetch_passport_by_org(org_id) if ready else None
+    return {
+        "org_id": org_id,
+        "ready": ready,
+        "reason": copilot_readiness_label(reason) if reason else None,
+        "brand_id": passport.get("id") if passport else None,
+        "llm": "groq" if groq_configured() else ("hermes" if hermes_configured() else "none"),
+    }
 
 
 @app.post("/chat")
@@ -619,8 +647,22 @@ async def chat(
     request: ChatRequest,
     user: Annotated[dict, Depends(get_current_user)],
 ):
+    org_id = str(user["org_id"])
+    ready, reason = assess_copilot_readiness(org_id)
+    if not ready:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Co-Pilot hali tayyor emas: {copilot_readiness_label(reason)}",
+        )
+
+    if not groq_configured() and not hermes_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="LLM sozlanmagan. GROQ_API_KEY yoki HERMES_API_KEY kerak.",
+        )
+
     conversation_id = str(uuid.uuid4())
-    client_context = _resolve_client_context(request)
+    client_context = _resolve_client_context(request, org_id)
     context_block = build_context_block(client_context, request.user_role)
 
     history = list(request.conversation_history)

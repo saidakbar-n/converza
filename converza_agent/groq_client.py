@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
+from collections.abc import AsyncGenerator
 
 import httpx
 
@@ -72,3 +74,53 @@ async def groq_complete_json(
         raise RuntimeError(f"Unexpected Groq response: {data!r}") from exc
 
     return extract_json_object(text)
+
+
+async def groq_stream(
+    system: str,
+    messages: list[dict],
+    *,
+    max_tokens: int = 4096,
+    temperature: float = 0.6,
+) -> AsyncGenerator[str, None]:
+    """Stream plain-text tokens from Groq (OpenAI-compatible SSE)."""
+    key = _groq_key()
+    if not key:
+        raise RuntimeError("GROQ_API_KEY is not set")
+
+    body = {
+        "model": _groq_model(),
+        "messages": [{"role": "system", "content": system}, *messages],
+        "stream": True,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        async with client.stream(
+            "POST",
+            GROQ_URL,
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+            json=body,
+        ) as resp:
+            if resp.status_code != 200:
+                detail = await resp.aread()
+                raise RuntimeError(
+                    f"Groq stream failed ({resp.status_code}): {detail.decode()[:500]}"
+                )
+            async for line in resp.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                raw = line[6:].strip()
+                if not raw or raw == "[DONE]":
+                    continue
+                try:
+                    chunk = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                content = chunk.get("choices", [{}])[0].get("delta", {}).get("content")
+                if content:
+                    yield content

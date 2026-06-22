@@ -1,8 +1,9 @@
-"""LLM — streams Co-Pilot via Hermes + MCP."""
+"""LLM — streams Co-Pilot via Groq (preferred) or Hermes."""
 
 from typing import AsyncGenerator
 
-from converza_agent.runtime import stream_agent
+from converza_agent.prompts.copilot import COPILOT_SYSTEM_PROMPT
+from converza_agent.runtime import stream_copilot
 
 
 async def stream_gemini(
@@ -12,11 +13,10 @@ async def stream_gemini(
     max_tokens: int = 4096,
 ) -> AsyncGenerator[str, None]:
     """Legacy name kept for /chat SSE handler."""
-    del system_prompt, model
-    async for token in stream_agent(
-        "copilot",
+    del model
+    async for token in stream_copilot(
         messages,
-        session_key="converza:copilot",
+        system_prompt=system_prompt or COPILOT_SYSTEM_PROMPT,
         max_tokens=max_tokens,
     ):
         yield token

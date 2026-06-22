@@ -129,6 +129,45 @@ async def run_agent_json(
     )
 
 
+async def stream_copilot(
+    messages: list[dict[str, Any]],
+    *,
+    system_prompt: str | None = None,
+    session_key: str | None = "converza:copilot",
+    max_tokens: int = 4096,
+    temperature: float = 0.6,
+    client: HermesClient | None = None,
+) -> AsyncGenerator[str, None]:
+    """
+    Stream Co-Pilot replies.
+
+    Uses direct Groq when GROQ_API_KEY is set (reliable on small VPS).
+    Falls back to Hermes otherwise.
+    """
+    from converza_agent.groq_client import groq_configured, groq_stream
+
+    system = (system_prompt or load_skill_prompt("copilot")).strip()
+    if groq_configured():
+        async for token in groq_stream(
+            system,
+            messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        ):
+            yield token
+        return
+
+    async for token in stream_agent(
+        "copilot",
+        messages,
+        session_key=session_key,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        client=client,
+    ):
+        yield token
+
+
 async def stream_agent(
     agent_id: str,
     messages: list[dict[str, Any]],

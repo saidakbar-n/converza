@@ -47,7 +47,8 @@ DM Closer requires: active subscription + Business connection + passport (name, 
 ## 5. Co-Pilot
 
 - [ ] Co-Pilot tab unlocked after passport save
-- [ ] Uzbek message → streamed Hermes reply
+- [ ] `./scripts/diag-copilot.sh <org_id>` streams Uzbek reply (Groq when `GROQ_API_KEY` set)
+- [ ] Web panel Co-Pilot tab → Uzbek message → streamed reply
 
 ## 6. Security & ops
 

@@ -1507,6 +1507,12 @@
     const statusText = document.getElementById("status-text");
     const statusDot = document.getElementById("status-dot");
     const copilotTab = document.getElementById("copilot-tab");
+    const copilotTabLegacy = document.getElementById("copilot-tab-legacy");
+
+    function enableCopilotTabs(enabled) {
+      copilotTab.disabled = !enabled;
+      if (copilotTabLegacy) copilotTabLegacy.disabled = !enabled;
+    }
 
     function apiHeaders(extra = {}) {
       const headers = { ...extra };
@@ -1867,7 +1873,7 @@
       localStorage.removeItem(AUTH_STORAGE_KEY);
       document.getElementById("auth-user").classList.remove("visible");
       document.getElementById("org-id-label").textContent = "kirilmagan";
-      copilotTab.disabled = true;
+      enableCopilotTabs(false);
       document.getElementById("connection-panel").hidden = true;
       showReturningLogin();
       updateSetupVisibility();
@@ -2065,11 +2071,24 @@
         target_audience: passport.target_audience || "",
         core_offer: passport.core_offer || ""
       };
-      copilotTab.disabled = false;
+      enableCopilotTabs(true);
       statusText.textContent = "Yuklandi";
       statusDot.style.background = "var(--green)";
       document.getElementById("saved-brand").textContent = passport.brand_name || "Tayyor";
       updateMetrics();
+    }
+
+    async function refreshCopilotStatus() {
+      if (!state.token) return;
+      try {
+        const response = await fetch("/api/copilot/status", { headers: apiHeaders() });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.brand_id && !state.brandId) state.brandId = data.brand_id;
+        enableCopilotTabs(Boolean(data.ready));
+      } catch (_) {
+        enableCopilotTabs(state.saved);
+      }
     }
 
     async function loadExistingPassport() {
@@ -2081,6 +2100,7 @@
         if (!response.ok) return;
         const passport = await response.json();
         applySavedPassport(passport);
+        await refreshCopilotStatus();
       } catch (_) {
         // No saved passport yet — keep the empty form.
       }
@@ -2131,7 +2151,8 @@
           target_audience: passport.target_audience,
           core_offer: passport.core_offer
         };
-        copilotTab.disabled = false;
+        enableCopilotTabs(true);
+        await refreshCopilotStatus();
         statusText.textContent = "Saqlandi";
         statusDot.style.background = "var(--green)";
         document.getElementById("saved-brand").textContent = passport.brand_name;
@@ -2247,6 +2268,15 @@
           headers: apiHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(payload)
         });
+
+        if (!response.ok) {
+          let detail = `${response.status} ${response.statusText}`;
+          try {
+            const err = await response.json();
+            detail = parseApiError(err, detail);
+          } catch (_) { /* keep status text */ }
+          throw new Error(detail);
+        }
 
         let full = "";
         await streamSse(response, assistant, (event) => {
