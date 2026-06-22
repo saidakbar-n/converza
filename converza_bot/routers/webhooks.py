@@ -152,7 +152,7 @@ async def _handle_sales_direct_message(update: TelegramUpdate) -> None:
     if not msg:
         return
 
-    user_id = msg.from_user.id if msg.from_user else msg.chat.id
+    user_id = msg.from_.id if msg.from_ else msg.chat.id
     cmd = parse_sales_command(msg.text)
     if cmd == "/config":
         logger.info(

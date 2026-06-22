@@ -4,7 +4,11 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 from models.schemas import TelegramUpdate
-from routers.webhooks import _dispatch_sales_update, _try_handle_sales_business_command
+from routers.webhooks import (
+    _dispatch_sales_update,
+    _handle_sales_direct_message,
+    _try_handle_sales_business_command,
+)
 
 
 OWNER_ID = 788881532
@@ -74,6 +78,28 @@ def test_customer_business_message_not_intercepted():
         handled = asyncio.run(_try_handle_sales_business_command(update, payload))
 
     assert handled is False
+
+
+def test_direct_message_config_uses_from_alias():
+    payload = {
+        "update_id": 9003,
+        "message": {
+            "message_id": 12,
+            "from": {"id": OWNER_ID, "is_bot": False, "first_name": "Owner"},
+            "chat": {"id": OWNER_ID, "type": "private", "first_name": "Owner"},
+            "date": 1,
+            "text": "/config",
+        },
+    }
+    update = TelegramUpdate.model_validate(payload)
+
+    with patch(
+        "routers.webhooks.handle_config_command",
+        new_callable=AsyncMock,
+    ) as mock_config:
+        asyncio.run(_handle_sales_direct_message(update))
+
+    mock_config.assert_awaited_once_with(OWNER_ID, OWNER_ID)
 
 
 def test_dispatch_routes_owner_config_before_ingestor():
