@@ -38,10 +38,11 @@ APP_ADMIN_COMMANDS = APP_COMMANDS + [
     {"command": "reject", "description": "Arizani rad etish"},
 ]
 
-# Sales bot: redirect-only menu (no passport, admin, or Hermes commands).
+# Sales bot: owner /config + redirect for everyone else.
 SALES_COMMANDS = [
+    {"command": "config", "description": "DM Closer ohangini tanlash"},
     {"command": "start", "description": "Bu bot haqida"},
-    {"command": "help", "description": "Boshqaruv botiga o'tish"},
+    {"command": "help", "description": "Yordam"},
 ]
 
 

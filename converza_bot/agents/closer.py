@@ -22,9 +22,10 @@ from services.payments import (
 from converza_agent.config import hermes_model
 from converza_agent.language_detect import (
     FALLBACK_REPLY,
-    LANGUAGE_INSTRUCTIONS,
     LANGUAGE_LABELS,
     detect_reply_language,
+    detect_uzbek_script,
+    language_instruction,
 )
 from converza_agent.runtime import run_dm_closer_json
 
@@ -83,9 +84,12 @@ async def generate_reply(
     payments_enabled = is_configured_provider_token(click_token)
 
     reply_language = detect_reply_language(inbound_text)
+    uz_script = detect_uzbek_script(inbound_text) if reply_language == "uz" else "latin"
+    lang_instruction = language_instruction(reply_language, uz_script=uz_script)
     logger.info(
-        "DM closer reply_language=%s org_id=%s prospect_id=%s inbound=%r",
+        "DM closer reply_language=%s uz_script=%s org_id=%s prospect_id=%s inbound=%r",
         reply_language,
+        uz_script,
         org_id,
         prospect_id,
         inbound_text[:80],
@@ -98,7 +102,9 @@ async def generate_reply(
         "inbound_text": inbound_text,
         "reply_language": reply_language,
         "reply_language_label": LANGUAGE_LABELS[reply_language],
-        "reply_language_instruction": LANGUAGE_INSTRUCTIONS[reply_language],
+        "reply_language_instruction": lang_instruction,
+        "uz_script": uz_script if reply_language == "uz" else None,
+        "communication_tone": brand.get("tone") or brand.get("brand_voice") or "",
         "brand_context": _trim_brand_context(brand),
         "message_history": history,
         "payments_enabled": payments_enabled,
@@ -111,6 +117,7 @@ async def generate_reply(
             user_content,
             max_tokens=600,
             reply_language=reply_language,
+            uz_script=uz_script,
         )
     except Exception as exc:
         logger.exception(

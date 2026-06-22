@@ -69,6 +69,7 @@ async def run_dm_closer_json(
     max_tokens: int = 600,
     temperature: float = 0.3,
     reply_language: str | None = None,
+    uz_script: str = "latin",
 ) -> dict:
     """
     DM Closer JSON reply.
@@ -78,11 +79,11 @@ async def run_dm_closer_json(
     """
     from converza_agent.closer_schema import normalize_closer_json
     from converza_agent.groq_client import groq_complete_json, groq_configured
-    from converza_agent.language_detect import LANGUAGE_INSTRUCTIONS
+    from converza_agent.language_detect import language_instruction
     from converza_agent.prompts.language import DM_CLOSER_LANGUAGE_RULE
 
     lang = reply_language or "uz"
-    lang_instruction = LANGUAGE_INSTRUCTIONS.get(lang, LANGUAGE_INSTRUCTIONS["uz"])
+    lang_instruction = language_instruction(lang, uz_script=uz_script if lang == "uz" else "latin")
 
     system = (
         f"{DM_CLOSER_LANGUAGE_RULE}\n\n"

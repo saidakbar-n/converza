@@ -11,6 +11,11 @@ from agents import hitl
 from agents.admin_access import handle_admin_callback
 from agents.onboarding import handle_onboarding_message
 from agents.business_connection import handle_business_connection
+from agents.sales_config import (
+    handle_config_callback,
+    handle_config_command,
+    parse_sales_command,
+)
 from services.dedup import is_duplicate
 from services.subscriptions import activate_subscription
 from services.telegram_bots import APP_BOT_USERNAME, app_api_base, sales_api_base
@@ -134,6 +139,7 @@ async def _sales_bot_reply(chat_id: int) -> None:
         chat_id,
         "Bu bot — Converza sotuv yordamchisi.\n"
         "Faqat Telegram Business orqali mijozlar bilan ishlaydi.\n\n"
+        "Egasiz: /config — javob ohangini tanlash\n\n"
         f"Sozlash va boshqaruv: @{APP_BOT_USERNAME}\n"
         f"Veb: {WEB_APP_URL}",
     )
@@ -143,7 +149,15 @@ async def _handle_sales_direct_message(update: TelegramUpdate) -> None:
     msg = update.message
     if not msg:
         return
-    # Any DM to the sales bot (including /start, media) → redirect to App bot.
+
+    cmd = parse_sales_command(msg.text)
+    if cmd == "/config":
+        await handle_config_command(msg.chat.id, msg.from_user.id if msg.from_user else msg.chat.id)
+        return
+    if cmd in ("/start", "/help"):
+        await _sales_bot_reply(msg.chat.id)
+        return
+
     await _sales_bot_reply(msg.chat.id)
 
 
@@ -164,6 +178,10 @@ async def _dispatch_sales_update(update: TelegramUpdate, raw: dict | None = None
 
         if update.business_connection:
             await handle_business_connection(update)
+            return
+
+        if update.callback_query:
+            await handle_config_callback(update.callback_query)
             return
 
         from services.telegram_inbound import raw_business_message
