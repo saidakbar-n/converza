@@ -123,14 +123,19 @@ def enrich_passport(passport: dict | None) -> dict | None:
     """Add in-memory agent fields that are not stored as DB columns."""
     if not passport:
         return passport
+    row = dict(passport)
     enriched = dict(passport)
     meta, clean_notes = _extract_meta_from_raw_notes(enriched.get("raw_notes") or "")
     enriched["raw_notes"] = clean_notes
 
     if "_passport" in meta and isinstance(meta["_passport"], dict):
         for key, value in meta["_passport"].items():
-            if key != "raw_notes":
-                enriched[key] = value
+            if key == "raw_notes":
+                continue
+            # DB columns win over stale embedded meta (e.g. tone updated via /config).
+            if key in DB_PASSPORT_FIELDS and row.get(key) is not None:
+                continue
+            enriched[key] = value
     else:
         for key, value in meta.items():
             enriched.setdefault(key, value)

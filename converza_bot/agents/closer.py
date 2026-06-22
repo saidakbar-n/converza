@@ -88,15 +88,7 @@ async def generate_reply(
     reply_language = detect_reply_language(inbound_text)
     uz_script = detect_uzbek_script(inbound_text) if reply_language == "uz" else "latin"
     lang_instruction = language_instruction(reply_language, uz_script=uz_script)
-    logger.info(
-        "DM closer reply_language=%s uz_script=%s org_id=%s prospect_id=%s inbound=%r",
-        reply_language,
-        uz_script,
-        org_id,
-        prospect_id,
-        inbound_text[:80],
-    )
-
+    communication_tone = brand.get("tone") or brand.get("brand_voice") or ""
     payload = {
         "org_id": org_id,
         "prospect_id": prospect_id,
@@ -106,11 +98,20 @@ async def generate_reply(
         "reply_language_label": LANGUAGE_LABELS[reply_language],
         "reply_language_instruction": lang_instruction,
         "uz_script": uz_script if reply_language == "uz" else None,
-        "communication_tone": brand.get("tone") or brand.get("brand_voice") or "",
+        "communication_tone": communication_tone,
         "brand_context": _trim_brand_context(brand),
         "message_history": history,
         "payments_enabled": payments_enabled,
     }
+    logger.info(
+        "DM closer reply_language=%s uz_script=%s org_id=%s prospect_id=%s tone=%r inbound=%r",
+        reply_language,
+        uz_script,
+        org_id,
+        prospect_id,
+        communication_tone,
+        inbound_text[:80],
+    )
 
     draft_json: dict | None = None
     user_content = json.dumps(payload, ensure_ascii=False)

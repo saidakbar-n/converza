@@ -5,7 +5,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from db.supabase_client import sb
-from services.brand_passport import fetch_passport_by_org
+from services.brand_passport import (
+    _embed_meta_in_raw_notes,
+    _extract_meta_from_raw_notes,
+    fetch_passport_by_org,
+)
 
 TONE_OPTIONS: tuple[str, ...] = (
     "Samimiy, ishonchli va lo'nda",
@@ -37,12 +41,26 @@ def set_passport_tone(org_id: str, tone: str) -> dict | None:
     if tone not in TONE_OPTIONS:
         raise ValueError("invalid_tone")
 
-    existing = fetch_passport_by_org(org_id)
+    result = (
+        sb.table("brand_passports")
+        .select("*")
+        .eq("org_id", org_id)
+        .maybe_single()
+        .execute()
+    )
+    existing = result.data if result else None
     if not existing or not existing.get("id"):
         return None
 
     now = datetime.now(timezone.utc).isoformat()
-    sb.table("brand_passports").update({"tone": tone, "updated_at": now}).eq(
-        "id", existing["id"]
-    ).execute()
+    raw_notes = existing.get("raw_notes") or ""
+    meta, clean_notes = _extract_meta_from_raw_notes(raw_notes)
+    passport_meta = dict(meta.get("_passport") or {})
+    passport_meta["tone"] = tone
+    meta["_passport"] = passport_meta
+    synced_raw_notes = _embed_meta_in_raw_notes(clean_notes, meta)
+
+    sb.table("brand_passports").update(
+        {"tone": tone, "raw_notes": synced_raw_notes, "updated_at": now}
+    ).eq("id", existing["id"]).execute()
     return fetch_passport_by_org(org_id)
