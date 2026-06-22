@@ -26,7 +26,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/converza_bot
           HERMES_API_KEY: test
         run: |
-          python -m pytest converza_bot/tests/test_payments.py converza_bot/tests/test_hermes_client.py converza_bot/tests/test_daily_report.py converza_bot/tests/test_closer_readiness.py -q
+          python -m pytest converza_bot/tests/test_payments.py converza_bot/tests/test_hermes_client.py converza_bot/tests/test_daily_report.py converza_bot/tests/test_closer_readiness.py converza_bot/tests/test_invoice_intent.py -q
 
       - name: Import bot main
         working-directory: converza_bot

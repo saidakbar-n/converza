@@ -68,3 +68,11 @@ def payment_unavailable_prospect_message() -> str:
         "To'lov havolasini hozir yubora olmaymiz. "
         "Iltimos, biz bilan bevosita bog'laning — yordam beramiz."
     )
+
+
+def payment_invoice_failed_message() -> str:
+    """When sendInvoice fails after the customer asked to pay."""
+    return (
+        "To'lov hisob-fakturasini yuborishda texnik xatolik yuz berdi. "
+        "Iltimos, bir ozdan keyin qayta yozing yoki biz bilan bog'laning."
+    )

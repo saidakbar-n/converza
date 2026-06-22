@@ -17,9 +17,11 @@ from services.org_resolver import lookup_business_connection_id
 from services.payments import (
     get_payment_provider_token,
     is_configured_provider_token,
+    payment_invoice_failed_message,
     payment_unavailable_prospect_message,
 )
 from converza_agent.config import hermes_model
+from converza_agent.invoice_intent import resolve_invoice_request
 from converza_agent.language_detect import (
     FALLBACK_REPLY,
     LANGUAGE_LABELS,
@@ -165,7 +167,14 @@ async def generate_reply(
         if decision.edited_reply:
             approved_reply = decision.edited_reply
 
-    is_invoice = invoice_required or "[TRIGGER_INVOICE]" in approved_reply
+    should_invoice, invoice_tier = resolve_invoice_request(
+        invoice_required=invoice_required,
+        invoice_tier=invoice_tier,
+        client_condition=condition,
+        inbound_text=inbound_text,
+        payments_enabled=payments_enabled,
+    )
+    is_invoice = should_invoice or "[TRIGGER_INVOICE]" in approved_reply
     final_text = approved_reply.replace("[TRIGGER_INVOICE]", "").strip()
 
     if is_invoice and is_configured_provider_token(click_token):
@@ -177,10 +186,33 @@ async def generate_reply(
                 )
                 msg_resp.raise_for_status()
         invoice_item = select_invoice_item(brand, invoice_tier)
-        tg_resp = await send_invoice(
+        invoice_result = await send_invoice(
             chat_id, click_token, prospect_id, invoice_item, conn_id
         )
-        tg_resp.raise_for_status()
+        if not invoice_result.get("ok"):
+            logger.error(
+                "sendInvoice failed org_id=%s chat_id=%s status=%s body=%s",
+                org_id,
+                chat_id,
+                invoice_result.get("status"),
+                invoice_result.get("body"),
+            )
+            async with httpx.AsyncClient(timeout=10) as client:
+                fail_resp = await client.post(
+                    f"{TELEGRAM_API}/sendMessage",
+                    json=_telegram_send_payload(
+                        chat_id, payment_invoice_failed_message(), conn_id
+                    ),
+                )
+                fail_resp.raise_for_status()
+        else:
+            logger.info(
+                "sendInvoice ok org_id=%s chat_id=%s tier=%s amount=%s",
+                org_id,
+                chat_id,
+                invoice_item.get("label"),
+                invoice_item.get("amount"),
+            )
     else:
         if is_invoice and not is_configured_provider_token(click_token):
             if not final_text:

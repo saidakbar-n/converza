@@ -45,6 +45,8 @@ def normalize_closer_json(raw: dict | None) -> dict:
     invoice_required = bool(raw.get("invoice_required"))
     if not invoice_required and intent in ("invoice", "payment", "pay"):
         invoice_required = True
+    if not invoice_required and condition == "purchasing":
+        invoice_required = True
 
     tier = raw.get("invoice_tier")
     if tier is not None and not str(tier).strip():
