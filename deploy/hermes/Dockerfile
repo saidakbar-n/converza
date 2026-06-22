@@ -16,6 +16,7 @@ COPY converza_mcp /app/converza_mcp
 COPY deploy/hermes/skills /app/hermes-skills
 COPY deploy/hermes/config.yaml.template /app/hermes-config.yaml.template
 COPY deploy/hermes/patch_model.py /app/deploy/hermes/patch_model.py
+COPY deploy/hermes/patch_telegram.py /app/deploy/hermes/patch_telegram.py
 
 # Install Hermes at build time (root Linux → /usr/local/bin/hermes, data in $HERMES_HOME).
 # PYTHONPATH must be unset during install or pip/entrypoints shadow the wrong checkout.

@@ -93,29 +93,38 @@ async def _set_commands(api_base: str, commands: list, admin_commands: list | No
 
 
 async def set_bot_commands() -> None:
-    await _set_commands(app_api_base(), APP_COMMANDS, APP_ADMIN_COMMANDS)
+    app = app_api_base()
     sales = sales_api_base()
-    if sales and sales != app_api_base():
-        await _delete_commands(sales)
-        await _set_commands(sales, SALES_COMMANDS, None)
-    elif sales == app_api_base():
+    if sales and sales == app:
         logger.warning(
             "TELEGRAM_BOT_TOKEN equals TELEGRAM_APP_BOT_TOKEN — use separate bots"
         )
-
-
-async def _refresh_sales_commands_delayed() -> None:
-    """Hermes gateway may register its own menu async — re-apply Converza menu."""
-    import asyncio
-
-    sales = sales_api_base()
-    if not sales or sales == app_api_base():
-        return
-    for delay in (15, 45, 120):
-        await asyncio.sleep(delay)
+    if app:
+        await _delete_commands(app)
+        await _set_commands(app, APP_COMMANDS, APP_ADMIN_COMMANDS)
+    if sales and sales != app:
         await _delete_commands(sales)
         await _set_commands(sales, SALES_COMMANDS, None)
-        logger.info("Re-applied sales bot commands after %ss (override Hermes menu)", delay)
+
+
+# Hermes gateway may register its agent menu async after startup — re-apply Converza menus.
+_COMMAND_REFRESH_DELAYS_SEC = (15, 45, 120, 300, 600)
+
+
+async def _refresh_bot_commands_delayed() -> None:
+    app = app_api_base()
+    sales = sales_api_base()
+    for delay in _COMMAND_REFRESH_DELAYS_SEC:
+        await asyncio.sleep(delay)
+        if app:
+            await _delete_commands(app)
+            await _set_commands(app, APP_COMMANDS, APP_ADMIN_COMMANDS)
+        if sales and sales != app:
+            await _delete_commands(sales)
+            await _set_commands(sales, SALES_COMMANDS, None)
+        logger.info(
+            "Re-applied bot command menus after %ss (override Hermes menu)", delay
+        )
 
 
 def _validate_startup() -> None:
@@ -136,9 +145,15 @@ def _validate_startup() -> None:
 async def lifespan(app: FastAPI):
     _validate_startup()
     await set_bot_commands()
-    asyncio.create_task(_refresh_sales_commands_delayed())
+    asyncio.create_task(_refresh_bot_commands_delayed())
 
     scheduler = AsyncIOScheduler()
+    scheduler.add_job(
+        set_bot_commands,
+        CronTrigger(minute="*/30", timezone="Asia/Tashkent"),
+        id="refresh_bot_commands",
+        replace_existing=True,
+    )
     trigger = CronTrigger(hour=23, minute=59, timezone="Asia/Tashkent")
     scheduler.add_job(run_nightly_audit, trigger)
     scheduler.start()

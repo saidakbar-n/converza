@@ -129,10 +129,10 @@ chmod +x "$ROOT/scripts/set_telegram_webhooks.sh"
 "$ROOT/scripts/set_telegram_webhooks.sh"
 
 echo ""
-echo "==> Fix sales bot command menu (override Hermes /new /model etc.)"
+echo "==> Fix bot command menus (override Hermes /new /model etc.)"
 sleep 20
-chmod +x "$ROOT/scripts/fix-sales-bot-commands.sh"
-"$ROOT/scripts/fix-sales-bot-commands.sh"
+chmod +x "$ROOT/scripts/fix-bot-commands.sh"
+"$ROOT/scripts/fix-bot-commands.sh" sales
 
 echo ""
 echo "==> Webhook status"

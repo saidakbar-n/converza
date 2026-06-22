@@ -1072,10 +1072,19 @@ async def update_brand_passport(
 # ---------------------------------------------------------------------------
 
 @app.get("/")
-async def index():
-    """Serve the SPA with no-store so updated JS/HTML is never served stale."""
+async def landing_page():
+    """Public marketing landing page."""
     return FileResponse(
-        "static/index.html",
+        "static/landing.html",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@app.get("/app")
+async def app_page():
+    """Authenticated DM Closer / Co-Pilot dashboard."""
+    return FileResponse(
+        "static/app.html",
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 

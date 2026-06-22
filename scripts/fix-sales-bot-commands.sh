@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reset @ConverzaSales_bot menu to Converza /start + /help (wipes Hermes commands).
+# Reset @ConverzaSales_bot menu to Converza /config, /start, /help (wipes Hermes commands).
 # Run after hermes restart or when the sales bot menu shows /new, /model, etc.
 #
 #   ./scripts/fix-sales-bot-commands.sh
@@ -43,10 +43,10 @@ if [[ -n "${ADMIN_TELEGRAM_IDS:-}" ]]; then
   done
 fi
 
-echo "==> Setting Converza sales bot commands (start + help only)"
+echo "==> Setting Converza sales bot commands (/config, /start, /help)"
 curl -fsS "${API}/setMyCommands" \
   -H "Content-Type: application/json" \
-  -d '{"commands":[{"command":"start","description":"Bu bot haqida"},{"command":"help","description":"Boshqaruv botiga o'\''tish"}]}'
+  -d '{"commands":[{"command":"config","description":"DM Closer ohangini tanlash"},{"command":"start","description":"Bu bot haqida"},{"command":"help","description":"Yordam"}]}'
 
 echo ""
 echo "==> Current menu:"

@@ -56,6 +56,7 @@ fi
 # Hermes install may leave anthropic/opus defaults — align with Converza env keys.
 if [[ -f "$HERMES_CONFIG" ]]; then
   python3 /app/deploy/hermes/patch_model.py "$HERMES_CONFIG" || true
+  python3 /app/deploy/hermes/patch_telegram.py "$HERMES_CONFIG" || true
 fi
 
 if ! command -v hermes >/dev/null 2>&1 || [[ ! -x /usr/local/bin/hermes ]]; then
@@ -63,22 +64,6 @@ if ! command -v hermes >/dev/null 2>&1 || [[ ! -x /usr/local/bin/hermes ]]; then
   echo "  cd /opt/converza && git fetch origin && git reset --hard origin/main && git clean -fd" >&2
   echo "  docker compose -f docker-compose.prod.yml build --no-cache hermes" >&2
   exit 1
-fi
-
-if [[ -f "$HERMES_CONFIG" ]] && ! grep -q "platforms:" "$HERMES_CONFIG" 2>/dev/null; then
-  cat >> "$HERMES_CONFIG" <<'EOF'
-
-# Converza: Telegram handled by converza_bot webhooks, not Hermes polling
-platforms:
-  telegram:
-    enabled: false
-EOF
-fi
-# Hermes may persist telegram: enabled: true — force off every start.
-if [[ -f "$HERMES_CONFIG" ]] && grep -q 'telegram:' "$HERMES_CONFIG" 2>/dev/null; then
-  sed -i '/bot_token:/d' "$HERMES_CONFIG" 2>/dev/null || true
-  sed -i '/^[[:space:]]*telegram:/,/^[[:space:]]*[a-z_]*:/ s/enabled: true/enabled: false/' "$HERMES_CONFIG" 2>/dev/null || true
-  sed -i '/telegram:/,/enabled:/ s/enabled: true/enabled: false/' "$HERMES_CONFIG" 2>/dev/null || true
 fi
 
 # docker compose env_file still injects TELEGRAM_BOT_TOKEN — Hermes polls and deletes webhooks.
