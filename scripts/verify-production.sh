@@ -65,6 +65,33 @@ for path in webhook/telegram webhook/app; do
 done
 
 echo ""
+echo "==> Landing UI (auth gate + pricing)"
+LANDING=$(curl -fsS -m 15 "$BASE/" 2>/dev/null || echo "")
+if echo "$LANDING" | grep -q 'data-sign-in'; then
+  pass "Landing has Telegram Sign in"
+else
+  fail "Landing missing Sign in — on VPS: cd /opt/converza && git pull && sudo ./scripts/go-live.sh"
+fi
+if echo "$LANDING" | grep -q '\$500'; then
+  fail "Landing still shows \$500 — redeploy web container on VPS"
+else
+  pass "Landing pricing removed"
+fi
+AUTH_JS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 15 "$BASE/js/landing-auth.js" 2>/dev/null || echo "000")
+if [[ "$AUTH_JS_CODE" == "200" ]]; then
+  pass "/js/landing-auth.js"
+else
+  fail "/js/landing-auth.js → $AUTH_JS_CODE (rebuild web on VPS)"
+fi
+
+APP=$(curl -fsS -m 15 "$BASE/app" 2>/dev/null || echo "")
+if echo "$APP" | grep -q 'access-request-form'; then
+  fail "/app still has duplicate access form — redeploy web on VPS"
+else
+  pass "/app duplicate access form removed"
+fi
+
+echo ""
 echo "==> Smoke tests"
 if "$ROOT/scripts/smoke-test.sh" "$BASE"; then
   pass "smoke-test.sh"
