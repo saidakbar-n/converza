@@ -22,6 +22,7 @@ from services.prospects import ensure_conversation_id, get_or_create_prospect
 from services.supabase_errors import format_supabase_error
 from services.telegram_inbound import (
     extract_sender,
+    is_business_owner_sender,
     is_outgoing_business_echo,
     raw_business_message,
     resolve_inbound_message,
@@ -85,6 +86,27 @@ async def ingest_message(update: TelegramUpdate, raw: dict | None = None) -> Non
 
     business_connection_id = _extract_business_connection_id(update, raw)
 
+    try:
+        org_id = resolve_org_id(update, raw=raw)
+    except ValueError as exc:
+        logger.error("ingest_message org resolution failed: %s", exc)
+        conn = (raw_business_message(raw) or {}).get("business_connection_id")
+        logger.error(
+            "business_connection_id=%s not linked to any org — "
+            "owner should reconnect @ConverzaSales_bot in Telegram Business → Chatbots",
+            conn,
+        )
+        return
+
+    if is_business and is_business_owner_sender(sender.id, org_id):
+        logger.info(
+            "Skipping owner business_message update_id=%s sender_id=%s org_id=%s",
+            update.update_id,
+            sender.id,
+            org_id,
+        )
+        return
+
     if not inbound_text:
         if is_business:
             logger.info(
@@ -98,18 +120,6 @@ async def ingest_message(update: TelegramUpdate, raw: dict | None = None) -> Non
                 NON_TEXT_REPLY,
                 business_connection_id=business_connection_id,
             )
-        return
-
-    try:
-        org_id = resolve_org_id(update, raw=raw)
-    except ValueError as exc:
-        logger.error("ingest_message org resolution failed: %s", exc)
-        conn = (raw_business_message(raw) or {}).get("business_connection_id")
-        logger.error(
-            "business_connection_id=%s not linked to any org — "
-            "owner should reconnect @ConverzaSales_bot in Telegram Business → Chatbots",
-            conn,
-        )
         return
 
     ready, reason = assess_closer_readiness(org_id)

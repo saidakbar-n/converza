@@ -3,6 +3,7 @@
 from models.schemas import TelegramUpdate
 from services.telegram_inbound import (
     extract_message_text,
+    is_business_owner_sender,
     is_outgoing_business_echo,
     raw_business_message,
     resolve_inbound_message,
@@ -80,6 +81,13 @@ def test_skip_outgoing_business_echo():
         "business_connection_id": "conn-1",
     }
     assert is_outgoing_business_echo(payload) is True
+
+
+def test_business_owner_sender():
+    assert is_business_owner_sender(788881532, "788881532") is True
+    assert is_business_owner_sender(1970617659, "788881532") is False
+    assert is_business_owner_sender(None, "788881532") is False
+    assert is_business_owner_sender(788881532, "") is False
 
 
 def test_caption_fallback():

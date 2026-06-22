@@ -18,8 +18,15 @@ def raw_business_message(raw: dict | None) -> dict | None:
 
 
 def is_outgoing_business_echo(raw_msg: dict) -> bool:
-    """True for messages sent by the bot/owner on the business connection (not customer inbound)."""
+    """True for messages sent by the bot on the business connection (not customer inbound)."""
     return bool(raw_msg.get("sender_business_bot"))
+
+
+def is_business_owner_sender(sender_id: int | str | None, org_id: str) -> bool:
+    """True when the Telegram Business account owner sent the message (not a customer)."""
+    if sender_id is None or not org_id:
+        return False
+    return str(sender_id) == str(org_id)
 
 
 def extract_message_text(msg: TelegramMessage | None, raw_msg: dict | None) -> str:
