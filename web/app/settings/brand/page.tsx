@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const BRAND_NAME_STORAGE_KEY = "converza.brandName";
 
 export default function BrandPage() {
+  const [brandName, setBrandName] = useState("Osman Skincare");
   const [voice, setVoice] = useState("Direct, confident, warm. Speaks like a founder who built it themselves.");
   const [audience, setAudience] = useState(
     "DTC operators in the CIS selling premium skincare into the US and UAE.",
@@ -10,6 +13,19 @@ export default function BrandPage() {
   const [promise, setPromise] = useState("3 products in 1 bottle. No clutter on the bathroom shelf.");
   const [markets, setMarkets] = useState(["US", "UAE"]);
   const [newMarket, setNewMarket] = useState("");
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(BRAND_NAME_STORAGE_KEY)?.trim();
+    if (stored) setBrandName(stored);
+  }, []);
+
+  useEffect(() => {
+    const normalized = brandName.trim();
+    if (normalized) {
+      window.localStorage.setItem(BRAND_NAME_STORAGE_KEY, normalized);
+      window.dispatchEvent(new Event("converza:brand-name-updated"));
+    }
+  }, [brandName]);
 
   function addMarket() {
     const v = newMarket.trim();
@@ -28,6 +44,14 @@ export default function BrandPage() {
           The single source of truth the swarm reads before generating anything. Captured once, reused on every run.
         </p>
       </header>
+
+      <Field label="Brand name" hint="Shown in the sidebar and used as the workspace identity.">
+        <input
+          value={brandName}
+          onChange={(e) => setBrandName(e.target.value)}
+          className="w-full rounded-lg border border-border bg-bg-elevated px-3.5 py-2.5 text-[14px] text-text-primary outline-none transition-all focus:border-text-primary focus:shadow-[0_0_0_4px_rgba(0,0,0,0.04)]"
+        />
+      </Field>
 
       <Field label="Voice & tone" hint="Three to five adjectives. The way the brand sounds in writing.">
         <textarea

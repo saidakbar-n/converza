@@ -22,9 +22,9 @@ const serif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Converza — A 19-node AI workforce for e-commerce",
+  title: "Converza — Autonomous Revenue Team",
   description:
-    "Replace your $5,000 marketing agency. Launch 60 high-volume video ads in 24 hours. Pilot from $500.",
+    "Fire your $5,000 marketing agency. Hire a 19-agent AI team that creates video ads and closes inbound DMs 24/7.",
 };
 
 export default function LandingLayout({
@@ -34,7 +34,7 @@ export default function LandingLayout({
 }) {
   return (
     <div
-      className={`${geist.variable} ${mono.variable} ${serif.variable} relative min-h-screen bg-white text-black antialiased`}
+      className={`${geist.variable} ${mono.variable} ${serif.variable} landing-page relative min-h-screen bg-[#F9F8F6] text-[#1C1B19] antialiased`}
       style={{ fontFamily: "var(--font-geist), Inter, system-ui, sans-serif" }}
     >
       {/* Faint architectural grid background */}
@@ -43,7 +43,7 @@ export default function LandingLayout({
         className="pointer-events-none fixed inset-0 z-0"
         style={{
           backgroundImage:
-            "linear-gradient(to right, rgba(0,0,0,0.035) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.035) 1px, transparent 1px)",
+            "linear-gradient(to right, rgba(68,64,60,0.045) 1px, transparent 1px), linear-gradient(to bottom, rgba(68,64,60,0.045) 1px, transparent 1px)",
           backgroundSize: "72px 72px",
           maskImage:
             "radial-gradient(ellipse at center, black 0%, black 60%, transparent 100%)",
@@ -53,8 +53,15 @@ export default function LandingLayout({
       />
       {/* Override the global dark body bg for marketing routes. */}
       <style>{`
-        html, body { background: #FFFFFF !important; color: #000000 !important; }
+        html, body { background: #F9F8F6 !important; color: #1C1B19 !important; }
         html { color-scheme: light !important; }
+        .landing-page h1,
+        .landing-page h2,
+        .landing-page h3 {
+          font-family: var(--font-serif), Georgia, Cambria, "Times New Roman", serif;
+          font-weight: 400;
+          letter-spacing: -0.035em;
+        }
       `}</style>
       {/* Global noise texture */}
       <svg

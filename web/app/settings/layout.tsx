@@ -12,6 +12,8 @@ import {
   Brain,
   Cpu,
   ChevronLeft,
+  UsersRound,
+  Plug,
 } from "lucide-react";
 
 const groups = [
@@ -26,6 +28,8 @@ const groups = [
     title: "Workspace",
     items: [
       { id: "brand", label: "Brand passport", href: "/settings/brand", icon: Palette, hint: "Voice, tone, audience" },
+      { id: "audience", label: "Target audience", href: "/settings/audience", icon: UsersRound, hint: "Buyer profile, fears, markets" },
+      { id: "integrations", label: "Integrations", href: "/settings/integrations", icon: Plug, hint: "Connectors and data sources" },
       { id: "tokens", label: "API tokens", href: "/settings/tokens", icon: KeyRound, hint: "Personal access tokens" },
     ],
   },
@@ -151,7 +155,7 @@ function SettingsHub() {
           <span className="font-display text-accent">refine?</span>
         </h2>
         <p className="mt-3 max-w-md text-[15px] leading-relaxed text-text-secondary">
-          Six rooms. Each one shapes how the swarm thinks, ships, and bills.
+          Eight rooms. Each one shapes how the swarm thinks, ships, and bills.
         </p>
       </div>
 

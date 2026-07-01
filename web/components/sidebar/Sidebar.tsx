@@ -1,17 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import clsx from "clsx";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   LayoutDashboard,
-  Sparkles,
   Compass,
-  UsersRound,
   Crosshair,
-  Plug,
-  CreditCard,
   ChevronDown,
   X,
   MessageSquareText,
@@ -40,13 +37,17 @@ interface SidebarProps {
 
 const navItems: NavItem[] = [
   { id: "dashboard", label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { id: "brand", label: "Brand Profile", href: "/settings/brand", icon: Sparkles },
   { id: "strategy", label: "Strategy", href: "/strategy", icon: Compass },
-  { id: "audience", label: "Target Audience", href: "/audience", icon: UsersRound },
   { id: "competitors", label: "Competitors", href: "/competitors", icon: Crosshair },
-  { id: "integrations", label: "Integrations", href: "/integrations", icon: Plug },
-  { id: "billing", label: "Billing", href: "/settings/billing", icon: CreditCard },
 ];
+
+const chatHistoryItems = [
+  { id: "campaign-brief", title: "Campaign brief", meta: "Today" },
+  { id: "creative-hooks", title: "Creative hooks", meta: "Yesterday" },
+  { id: "competitor-review", title: "Competitor review", meta: "Mon" },
+];
+
+const BRAND_NAME_STORAGE_KEY = "converza.brandName";
 
 // ─────────────────────────────────────────────────────────────────────
 // Component
@@ -54,6 +55,29 @@ const navItems: NavItem[] = [
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const [chatHistoryOpen, setChatHistoryOpen] = useState(false);
+  const [brandName, setBrandName] = useState("Osman Skincare");
+  const isCopilot = pathname.startsWith("/copilot");
+
+  useEffect(() => {
+    setChatHistoryOpen(isCopilot);
+  }, [isCopilot]);
+
+  useEffect(() => {
+    function readBrandName() {
+      const stored = window.localStorage.getItem(BRAND_NAME_STORAGE_KEY)?.trim();
+      setBrandName(stored || "Osman Skincare");
+    }
+
+    readBrandName();
+    window.addEventListener("storage", readBrandName);
+    window.addEventListener("converza:brand-name-updated", readBrandName);
+
+    return () => {
+      window.removeEventListener("storage", readBrandName);
+      window.removeEventListener("converza:brand-name-updated", readBrandName);
+    };
+  }, []);
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -108,7 +132,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     <>
       {/* ── Workspace switcher (Claude / Linear style) ── */}
       <div className="flex h-16 shrink-0 items-center justify-between border-b border-border/60 px-4">
-        <button className="group flex items-center gap-2.5 rounded-lg px-1 py-1 transition-colors hover:bg-bg-hover">
+        <div className="flex items-center gap-2.5 px-1 py-1">
           <span className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-text-primary text-bg-elevated">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path
@@ -118,22 +142,16 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 strokeLinecap="round"
               />
             </svg>
-            <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-accent ring-2 ring-bg-secondary" />
           </span>
           <span className="flex flex-col items-start leading-tight">
             <span className="text-[13.5px] font-semibold tracking-[-0.015em] text-text-primary">
               Converza
             </span>
-            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-text-muted">
-              Osman Skincare
+            <span className="max-w-[150px] truncate font-mono text-[9px] uppercase tracking-[0.16em] text-text-muted">
+              {brandName}
             </span>
           </span>
-          <ChevronDown
-            size={13}
-            strokeWidth={2}
-            className="ml-1 text-text-muted transition-transform group-hover:translate-y-0.5"
-          />
-        </button>
+        </div>
         <button
           onClick={onClose}
           className="flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:bg-bg-hover hover:text-text-primary md:hidden"
@@ -153,22 +171,68 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         <div className="mt-6 border-t border-border/60 pt-3">
           <Link
             href="/copilot"
-            onClick={onClose}
-            className="group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] text-text-muted transition-colors hover:bg-bg-hover hover:text-text-secondary"
+            onClick={() => {
+              setChatHistoryOpen(true);
+              onClose();
+            }}
+            className={clsx(
+              "group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors",
+              isCopilot
+                ? "bg-bg-active font-medium text-text-primary"
+                : "text-text-muted hover:bg-bg-hover hover:text-text-secondary",
+            )}
           >
-            <MessageSquareText size={14} strokeWidth={1.8} />
+            <MessageSquareText
+              size={14}
+              strokeWidth={isCopilot ? 2.1 : 1.8}
+              className={isCopilot ? "text-text-primary" : ""}
+            />
             <span className="flex-1">Co-Pilot chat</span>
-            <kbd className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-text-muted/70">
-              ↗
-            </kbd>
+            <ChevronDown
+              size={12}
+              strokeWidth={2}
+              className={clsx(
+                "text-text-muted transition-transform duration-200",
+                chatHistoryOpen && isCopilot ? "rotate-180" : "-rotate-90",
+              )}
+            />
           </Link>
+
+          <AnimatePresence initial={false}>
+            {isCopilot && chatHistoryOpen && (
+              <motion.div
+                key="copilot-history"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="mt-1.5 space-y-1 pl-6">
+                  {chatHistoryItems.map((item) => (
+                    <Link
+                      key={item.id}
+                      href="/copilot"
+                      onClick={onClose}
+                      className="group flex items-center justify-between rounded-lg px-3 py-1.5 text-[12px] text-text-muted transition-colors hover:bg-bg-hover hover:text-text-primary"
+                    >
+                      <span className="truncate">{item.title}</span>
+                      <span className="ml-2 shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] text-text-muted/70">
+                        {item.meta}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </nav>
 
       {/* ── User chip ── */}
       <div className="mx-3 mb-3">
         <Link
-          href="/settings/profile"
+          href="/settings"
           onClick={onClose}
           className="group flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-bg-hover"
         >

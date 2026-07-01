@@ -2,17 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Terminal,
-  Send,
-  User,
-  Bot,
   Loader2,
   Rocket,
   MessageSquare,
   Paperclip,
-  Sparkles,
-  ChevronDown,
   ArrowUp,
+  Mic,
 } from "lucide-react";
 import clsx from "clsx";
 import { motion } from "motion/react";
@@ -307,7 +302,7 @@ function ModePill({
           strokeWidth={2.2}
           className={mode === "pipeline" ? "text-accent" : ""}
         />
-        Pipeline
+        Task
       </button>
     </div>
   );
@@ -425,7 +420,7 @@ function EmptyState({
           transition={{ duration: 0.4, delay: 0.05 }}
           className="font-mono text-[10px] uppercase tracking-[0.22em] text-text-muted"
         >
-          {mode === "pipeline" ? "Pipeline · Manager Agent" : "Co-Pilot · Strategist"}
+          {mode === "pipeline" ? "Task · Manager Agent" : "Co-Pilot · Strategist"}
         </motion.div>
         <h2 className="text-[clamp(32px,4vw,44px)] font-medium leading-[1.05] tracking-[-0.02em] text-text-primary">
           What are we shipping{" "}
@@ -433,7 +428,7 @@ function EmptyState({
         </h2>
         <p className="max-w-md text-[15px] leading-relaxed text-text-secondary">
           {mode === "pipeline"
-            ? "Describe a campaign. We compile the agent DAG and execute end-to-end while you watch."
+            ? "Describe a campaign task. We compile the agent plan and execute it while you watch."
             : "A senior marketing strategist on tap. Ask anything — strategy, copy, campaigns, competitive analysis."}
         </p>
       </motion.div>
@@ -775,7 +770,7 @@ export default function CommandCenter() {
                 {
                   id: crypto.randomUUID(),
                   role: "assistant",
-                  content: "DAG execution started. Watch the pipeline below.",
+                  content: "Task execution started. Watch the run below.",
                   type: "pipeline_status",
                 },
               ]);
@@ -816,10 +811,10 @@ export default function CommandCenter() {
                   role: "assistant",
                   content:
                     resultStatus === "complete"
-                      ? `Pipeline complete. Campaign "${event.campaign_name}" executed successfully.`
+                      ? `Task complete. Campaign "${event.campaign_name}" executed successfully.`
                       : resultStatus === "partial"
-                        ? `Pipeline partially complete. Some agents encountered issues.`
-                        : `Pipeline failed. Check the DAG visualizer for details.`,
+                        ? `Task partially complete. Some agents encountered issues.`
+                        : `Task failed. Check the run visualizer for details.`,
                   type: "pipeline_status",
                 },
               ]);
@@ -961,7 +956,7 @@ export default function CommandCenter() {
               disabled={streaming}
               placeholder={
                 mode === "pipeline"
-                  ? "Describe a campaign to execute…"
+                  ? "Describe a task to execute…"
                   : "Reply to Co-Pilot…"
               }
               className="block min-h-[28px] w-full resize-none bg-transparent px-5 pt-4 pb-2 text-[15px] leading-relaxed text-text-primary placeholder-text-muted outline-none disabled:opacity-50"
@@ -990,16 +985,14 @@ export default function CommandCenter() {
                   onChange={setPermissionMode}
                   disabled={streaming}
                 />
-                {/* Model selector — visual placeholder for now */}
+                {/* Voice input placeholder — UI only until browser speech capture is wired */}
                 <button
                   type="button"
-                  aria-label="Choose model"
                   disabled={streaming}
-                  className="group hidden items-center gap-1.5 rounded-full border border-border bg-bg-secondary/60 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-text-secondary transition-all duration-150 hover:border-border-hover hover:bg-bg-secondary hover:text-text-primary sm:inline-flex"
+                  aria-label="Voice input"
+                  className="group flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-bg-secondary/60 text-text-secondary transition-all duration-150 hover:border-border-hover hover:bg-bg-secondary hover:text-text-primary active:scale-[0.94] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Sparkles size={11} strokeWidth={2} />
-                  Sonnet 4.7
-                  <ChevronDown size={10} strokeWidth={2.2} className="opacity-60" />
+                  <Mic size={15} strokeWidth={2.1} />
                 </button>
                 {/* Send — black circle, magnetic press */}
                 <button
