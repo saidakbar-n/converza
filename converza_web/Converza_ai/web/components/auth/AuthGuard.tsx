@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { validateSession } from "@/lib/converza-api";
 
@@ -9,9 +9,13 @@ interface AuthGuardProps {
   children: React.ReactNode;
 }
 
+function landingSignInUrl(pathname: string | null): string {
+  const next = encodeURIComponent(pathname || "/");
+  return `/app/landing?login=1&next=${next}`;
+}
+
 /** Blocks Theater routes until Telegram JWT is valid. */
 export default function AuthGuard({ children }: AuthGuardProps) {
-  const router = useRouter();
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
 
@@ -27,14 +31,13 @@ export default function AuthGuard({ children }: AuthGuardProps) {
         return;
       }
 
-      const next = encodeURIComponent(pathname || "/");
-      router.replace(`/login?next=${next}`);
+      window.location.replace(landingSignInUrl(pathname));
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [pathname, router]);
+  }, [pathname]);
 
   if (!ready) {
     return (

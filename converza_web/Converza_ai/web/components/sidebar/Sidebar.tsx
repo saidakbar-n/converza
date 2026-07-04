@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
@@ -88,7 +88,6 @@ const navSections: NavSection[] = [
 
 export default function Sidebar({ open, onClose, onOpen }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [brandName, setBrandName] = useState("Converza");
   const [userName, setUserName] = useState("");
   const [userInitials, setUserInitials] = useState("?");
@@ -271,7 +270,7 @@ export default function Sidebar({ open, onClose, onOpen }: SidebarProps) {
             type="button"
             onClick={() => {
               clearStoredAuth();
-              router.replace("/login");
+              window.location.href = "/app/landing";
             }}
             className="shrink-0 rounded-md px-2 py-1 text-[10px] font-medium text-text-muted hover:bg-bg-hover hover:text-text-primary"
           >

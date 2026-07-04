@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState, type HTMLAttributes } from "react";
+import { Suspense, useCallback, useEffect, useState, type HTMLAttributes } from "react";
+import { useSearchParams } from "next/navigation";
 import TelegramLoginWidget from "@/components/auth/TelegramLoginWidget";
 import { getStoredAuth, setStoredAuth } from "@/lib/auth";
 import {
@@ -188,6 +189,7 @@ const translations = {
         { href: "#faq", label: "FAQ" },
       ],
       register: "Register",
+      signIn: "Sign in",
     },
     hero: {
       eyebrow: "Autonomous Revenue Team for serious operators",
@@ -419,6 +421,7 @@ const translations = {
         { href: "#faq", label: "FAQ" },
       ],
       register: "Регистрация",
+      signIn: "Войти",
     },
     hero: {
       eyebrow: "Автономная revenue-команда для серьезных операторов",
@@ -650,6 +653,7 @@ const translations = {
         { href: "#faq", label: "FAQ" },
       ],
       register: "Ro'yxatdan o'tish",
+      signIn: "Kirish",
     },
     hero: {
       eyebrow: "Jiddiy operatorlar uchun avtonom revenue-jamoa",
@@ -876,12 +880,37 @@ const translations = {
 
 type LandingCopy = (typeof translations)[keyof typeof translations];
 
+function appPath(path: string): string {
+  if (path === "/") return "/app/";
+  return `/app${path}`;
+}
+
 export default function ConverzaLandingPage() {
+  return (
+    <Suspense fallback={null}>
+      <ConverzaLandingPageInner />
+    </Suspense>
+  );
+}
+
+function ConverzaLandingPageInner() {
+  const searchParams = useSearchParams();
   const [scrolled, setScrolled] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalStep, setAuthModalStep] = useState<"choices" | "telegram">("choices");
+  const [postAuthPath, setPostAuthPath] = useState("/");
   const [pilotRequestOpen, setPilotRequestOpen] = useState(false);
   const [activeLanguage, setActiveLanguage] = useState<Language>("en");
   const copy = translations[activeLanguage];
+
+  useEffect(() => {
+    if (searchParams.get("login") !== "1") return;
+    const next = searchParams.get("next");
+    if (next?.startsWith("/")) setPostAuthPath(next);
+    setAuthModalStep("telegram");
+    setAuthModalOpen(true);
+    window.history.replaceState({}, "", window.location.pathname);
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -891,7 +920,9 @@ export default function ConverzaLandingPage() {
       try {
         const me = await fetchAuthMe();
         if (!cancelled && me.ok) {
-          window.location.replace("/app/");
+          const next = searchParams.get("next");
+          const target = next?.startsWith("/") ? appPath(next) : "/app/";
+          window.location.replace(target);
         }
       } catch {
         // stale token — user can sign in again
@@ -900,7 +931,7 @@ export default function ConverzaLandingPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 18);
@@ -936,7 +967,14 @@ export default function ConverzaLandingPage() {
         copy={copy}
         activeLanguage={activeLanguage}
         onLanguageChange={setActiveLanguage}
-        onOpenAuthModal={() => setAuthModalOpen(true)}
+        onOpenAuthModal={() => {
+          setAuthModalStep("telegram");
+          setAuthModalOpen(true);
+        }}
+        onOpenRegisterModal={() => {
+          setAuthModalStep("choices");
+          setAuthModalOpen(true);
+        }}
       />
       <HeroSection copy={copy} onOpenPilotForm={() => setPilotRequestOpen(true)} />
       <ProblemSection copy={copy} />
@@ -952,6 +990,8 @@ export default function ConverzaLandingPage() {
       <AuthModal
         open={authModalOpen}
         copy={copy.modal}
+        initialStep={authModalStep}
+        redirectTo={postAuthPath}
         onClose={() => setAuthModalOpen(false)}
       />
       <PilotRequestModal
@@ -968,12 +1008,14 @@ function Header({
   activeLanguage,
   onLanguageChange,
   onOpenAuthModal,
+  onOpenRegisterModal,
 }: {
   scrolled: boolean;
   copy: LandingCopy;
   activeLanguage: Language;
   onLanguageChange: (language: Language) => void;
   onOpenAuthModal: () => void;
+  onOpenRegisterModal: () => void;
 }) {
   return (
     <header className="pointer-events-none fixed inset-x-0 top-4 z-50 px-4">
@@ -1013,7 +1055,15 @@ function Header({
           />
           <button
             type="button"
+            data-sign-in
             onClick={onOpenAuthModal}
+            className="btn-nav-signin rounded-full border border-stone-200 bg-white/80 px-3 py-2.5 text-[12px] font-semibold text-stone-600 shadow-sm backdrop-blur transition-colors hover:bg-white hover:text-[#1C1B19] sm:px-4 sm:text-[13px]"
+          >
+            {copy.nav.signIn}
+          </button>
+          <button
+            type="button"
+            onClick={onOpenRegisterModal}
             className="group inline-flex items-center gap-2 rounded-full bg-[#1b5bf7] px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-transform duration-200 hover:scale-[1.025] active:scale-[0.98]"
           >
             {copy.nav.register}
@@ -1749,10 +1799,14 @@ function Footer({ copy }: { copy: LandingCopy }) {
 function AuthModal({
   open,
   copy,
+  initialStep = "choices",
+  redirectTo = "/",
   onClose,
 }: {
   open: boolean;
   copy: LandingCopy["modal"];
+  initialStep?: "choices" | "telegram";
+  redirectTo?: string;
   onClose: () => void;
 }) {
   const [step, setStep] = useState<"choices" | "signIn" | "signUp" | "telegram">("choices");
@@ -1773,9 +1827,9 @@ function AuthModal({
         user: { first_name: result.first_name, username: result.username },
       });
       onClose();
-      window.location.replace("/app/");
+      window.location.replace(appPath(redirectTo));
     },
-    [onClose],
+    [onClose, redirectTo],
   );
 
   const passwordChecks = {
@@ -1796,12 +1850,12 @@ function AuthModal({
   useEffect(() => {
     if (!open) return;
 
-    setStep("choices");
+    setStep(initialStep);
     setValues({ phone: "", email: "", password: "" });
     setPasswordTouched(false);
     setSubmittedMessage("");
     setAuthLoading(false);
-  }, [open]);
+  }, [open, initialStep]);
 
   function continueToDashboard() {
     setSubmittedMessage("Use Telegram sign-in for approved accounts.");

@@ -1175,7 +1175,10 @@ async def update_brand_passport(
 
 @app.get("/")
 async def landing_page():
-    """Public marketing landing page."""
+    """Public marketing landing — Next.js export at /app/landing."""
+    theater_landing = os.path.join(os.path.dirname(__file__), "static", "theater", "landing.html")
+    if os.path.isfile(theater_landing):
+        return RedirectResponse(url="/app/landing", status_code=307)
     return FileResponse(
         "static/landing.html",
         headers={"Cache-Control": "no-store, max-age=0"},
