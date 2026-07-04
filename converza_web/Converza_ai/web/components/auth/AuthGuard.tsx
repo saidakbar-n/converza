@@ -11,7 +11,7 @@ interface AuthGuardProps {
 
 function landingSignInUrl(pathname: string | null): string {
   const next = encodeURIComponent(pathname || "/");
-  return `/app/landing?login=1&next=${next}`;
+  return `/?login=1&next=${next}`;
 }
 
 /** Blocks Theater routes until Telegram JWT is valid. */

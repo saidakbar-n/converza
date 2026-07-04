@@ -11,7 +11,10 @@ interface MainLayoutProps {
 /** Routes outside the authenticated Theater shell. */
 function isStandaloneRoute(pathname: string | null) {
   if (!pathname) return false;
-  return pathname.startsWith("/landing") || pathname.startsWith("/login");
+  if (pathname.startsWith("/landing") || pathname.startsWith("/login")) return true;
+  // Marketing landing served at site root (FastAPI FileResponse on /)
+  if (typeof window !== "undefined" && window.location.pathname === "/") return true;
+  return false;
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {

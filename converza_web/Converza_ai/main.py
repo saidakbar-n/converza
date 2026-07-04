@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.types import Scope
 
 from agents.dag_runner import execute_dag
 from agents.manager import stream_manager
@@ -1173,37 +1174,68 @@ async def update_brand_passport(
 # Static files — must be mounted LAST so API routes take priority
 # ---------------------------------------------------------------------------
 
+THEATER_DIR = os.path.join(os.path.dirname(__file__), "static", "theater")
+NO_STORE = {"Cache-Control": "no-store, max-age=0"}
+
+
+class TheaterStaticFiles(StaticFiles):
+    """Resolve Next.js export paths (*.html or */index.html)."""
+
+    async def get_response(self, path: str, scope: Scope):
+        if path and not path.endswith("/"):
+            tail = path.rsplit("/", 1)[-1]
+            if tail and "." not in tail:
+                for candidate in (f"{path}.html", f"{path}/index.html"):
+                    if os.path.isfile(os.path.join(self.directory, candidate)):
+                        path = candidate
+                        break
+        return await super().get_response(path, scope)
+
+
+def _theater_landing_path() -> str | None:
+    for candidate in (
+        os.path.join(THEATER_DIR, "landing.html"),
+        os.path.join(THEATER_DIR, "landing", "index.html"),
+    ):
+        if os.path.isfile(candidate):
+            return candidate
+    return None
+
+
 @app.get("/")
 async def landing_page():
-    """Public marketing landing — Next.js export at /app/landing."""
-    theater_landing = os.path.join(os.path.dirname(__file__), "static", "theater", "landing.html")
-    if os.path.isfile(theater_landing):
-        return RedirectResponse(url="/app/landing", status_code=307)
-    return FileResponse(
-        "static/landing.html",
-        headers={"Cache-Control": "no-store, max-age=0"},
-    )
+    """Public marketing landing (Next.js export)."""
+    landing = _theater_landing_path()
+    if landing:
+        return FileResponse(landing, headers=NO_STORE)
+    return FileResponse("static/landing.html", headers=NO_STORE)
 
 
 @app.get("/admin")
 async def admin_page():
     return FileResponse(
         "static/admin.html",
-        headers={"Cache-Control": "no-store, max-age=0"},
+        headers=NO_STORE,
     )
 
 
-THEATER_DIR = os.path.join(os.path.dirname(__file__), "static", "theater")
 if os.path.isdir(THEATER_DIR):
 
     @app.get("/app")
     async def theater_root():
-        """StaticFiles mount only matches /app/... — redirect bare /app."""
         return RedirectResponse(url="/app/", status_code=307)
+
+    @app.get("/app/landing")
+    @app.get("/app/landing/")
+    async def theater_landing_alias():
+        landing = _theater_landing_path()
+        if landing:
+            return FileResponse(landing, headers=NO_STORE)
+        raise HTTPException(status_code=404, detail="Landing page not built")
 
     app.mount(
         "/app",
-        StaticFiles(directory=THEATER_DIR, html=True),
+        TheaterStaticFiles(directory=THEATER_DIR, html=True),
         name="theater",
     )
 else:

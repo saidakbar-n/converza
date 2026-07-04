@@ -9,7 +9,7 @@ export default function LoginRedirectPage() {
 
   useEffect(() => {
     const next = searchParams.get("next");
-    const url = new URL("/app/landing", window.location.origin);
+    const url = new URL("/", window.location.origin);
     url.searchParams.set("login", "1");
     if (next) url.searchParams.set("next", next);
     window.location.replace(url.pathname + url.search);

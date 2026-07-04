@@ -270,7 +270,7 @@ export default function Sidebar({ open, onClose, onOpen }: SidebarProps) {
             type="button"
             onClick={() => {
               clearStoredAuth();
-              window.location.href = "/app/landing";
+              window.location.href = "/";
             }}
             className="shrink-0 rounded-md px-2 py-1 text-[10px] font-medium text-text-muted hover:bg-bg-hover hover:text-text-primary"
           >

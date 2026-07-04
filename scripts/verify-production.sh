@@ -72,19 +72,17 @@ done
 
 echo ""
 echo "==> Landing UI (contributor Next.js page)"
-LANDING_CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 15 -L "$BASE/" 2>/dev/null || echo "000")
-LANDING_BODY=$(curl -fsSL -m 15 "$BASE/app/landing" 2>/dev/null || echo "")
+LANDING_BODY=$(curl -fsSL -m 15 "$BASE/" 2>/dev/null || echo "")
 if echo "$LANDING_BODY" | grep -q 'data-sign-in'; then
-  pass "Landing has Sign in (data-sign-in) at /app/landing"
+  pass "Landing has Sign in at /"
 elif echo "$LANDING_BODY" | grep -q 'Fire your \$5,000 marketing agency'; then
-  pass "Landing serves contributor marketing copy"
+  pass "Landing serves contributor marketing copy at /"
 else
-  fail "Landing missing contributor page — rebuild theater and redeploy web"
+  fail "Landing missing at / — rebuild theater and redeploy web"
 fi
-if [[ "$LANDING_CODE" == "200" || "$LANDING_CODE" == "307" ]]; then
-  pass "/ redirects to marketing landing ($LANDING_CODE)"
-else
-  fail "/ → $LANDING_CODE (expected redirect or 200)"
+LANDING_ALIAS=$(curl -fsSL -m 15 "$BASE/app/landing/" 2>/dev/null || echo "")
+if echo "$LANDING_ALIAS" | grep -q 'Fire your'; then
+  pass "/app/landing/ alias works"
 fi
 
 APP=$(curl -fsSL -m 15 "$BASE/app" 2>/dev/null || echo "")
