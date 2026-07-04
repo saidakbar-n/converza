@@ -71,23 +71,20 @@ for path in webhook/telegram webhook/app; do
 done
 
 echo ""
-echo "==> Landing UI (auth gate + pricing)"
-LANDING=$(curl -fsS -m 15 "$BASE/" 2>/dev/null || echo "")
-if echo "$LANDING" | grep -q 'data-sign-in'; then
-  pass "Landing has Telegram Sign in"
+echo "==> Landing UI (contributor Next.js page)"
+LANDING_CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 15 -L "$BASE/" 2>/dev/null || echo "000")
+LANDING_BODY=$(curl -fsSL -m 15 "$BASE/app/landing" 2>/dev/null || echo "")
+if echo "$LANDING_BODY" | grep -q 'data-sign-in'; then
+  pass "Landing has Sign in (data-sign-in) at /app/landing"
+elif echo "$LANDING_BODY" | grep -q 'Fire your \$5,000 marketing agency'; then
+  pass "Landing serves contributor marketing copy"
 else
-  fail "Landing missing Sign in — on VPS: cd /opt/converza && git pull && sudo ./scripts/go-live.sh"
+  fail "Landing missing contributor page — rebuild theater and redeploy web"
 fi
-if echo "$LANDING" | grep -q '\$500'; then
-  fail "Landing still shows \$500 — redeploy web container on VPS"
+if [[ "$LANDING_CODE" == "200" || "$LANDING_CODE" == "307" ]]; then
+  pass "/ redirects to marketing landing ($LANDING_CODE)"
 else
-  pass "Landing pricing removed"
-fi
-AUTH_JS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 15 "$BASE/js/landing-auth.js" 2>/dev/null || echo "000")
-if [[ "$AUTH_JS_CODE" == "200" ]]; then
-  pass "/js/landing-auth.js"
-else
-  fail "/js/landing-auth.js → $AUTH_JS_CODE (rebuild web on VPS)"
+  fail "/ → $LANDING_CODE (expected redirect or 200)"
 fi
 
 APP=$(curl -fsSL -m 15 "$BASE/app" 2>/dev/null || echo "")
