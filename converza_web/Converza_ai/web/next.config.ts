@@ -2,33 +2,32 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   async rewrites() {
+    const api = process.env.CONVERZA_API_URL || "http://127.0.0.1:8001";
     return [
-      // Pipeline endpoints → FastAPI (port 8000)
       {
         source: "/api/pipeline/:path*",
-        destination: "http://localhost:8000/api/pipeline/:path*",
+        destination: `${api}/api/pipeline/:path*`,
       },
       {
         source: "/api/pipeline",
-        destination: "http://localhost:8000/api/pipeline",
+        destination: `${api}/api/pipeline`,
       },
-      // Brand Passport CRUD → FastAPI
       {
         source: "/api/brand-passport/:path*",
-        destination: "http://localhost:8000/api/brand-passport/:path*",
+        destination: `${api}/api/brand-passport/:path*`,
       },
-      // Orchestrator (legacy) → FastAPI
       {
         source: "/api/orchestrate",
-        destination: "http://localhost:8000/api/orchestrate",
+        destination: `${api}/api/orchestrate`,
       },
-      // Health check → FastAPI
+      {
+        source: "/api/auth/:path*",
+        destination: `${api}/api/auth/:path*`,
+      },
       {
         source: "/health",
-        destination: "http://localhost:8000/health",
+        destination: `${api}/health`,
       },
-      // /api/chat is handled by Next.js API route (app/api/chat/route.ts)
-      // — no rewrite needed, it goes to OpenClaw via the translation proxy
     ];
   },
 };

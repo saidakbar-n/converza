@@ -42,9 +42,10 @@
   --color-info:          var(--color-accent);
   --color-info-dim:      var(--color-accent-dim);
 
-  /* ── Sidebar ── */
-  --sidebar-width:       272px;
+  /* ── Layout panes ── */
+  --sidebar-width:       220px;
   --sidebar-collapsed:   64px;
+  --master-feed-width:   350px;
 }
 
 @layer utilities {

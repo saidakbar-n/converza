@@ -29,7 +29,7 @@ export default function ConfigPageShell({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-bg-primary px-4 pl-14 md:pl-8 md:px-8">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-bg-primary px-4 md:px-8">
         <div className="flex items-baseline gap-3">
           <h1 className="text-[18px] font-medium tracking-[-0.01em] text-text-primary">
             {title}

@@ -54,7 +54,15 @@ from services.session import (
     get_current_user,
     is_admin_telegram_id,
 )
-from services.telegram_auth import verify_telegram_auth
+from services.workspace_data import (
+    approve_media_job,
+    build_routing_context,
+    fetch_competitors,
+    fetch_dashboard,
+    fetch_media_queue,
+    fetch_milo_insights,
+    fetch_pipeline,
+)
 
 load_dotenv()
 
@@ -692,6 +700,70 @@ async def copilot_status(user: Annotated[dict, Depends(get_current_user)], reque
     }
 
 
+def _parse_routing_agent(message: str) -> str | None:
+    lower = message.lower()
+    if "@milo" in lower:
+        return "milo"
+    if "@sleyz" in lower:
+        return "sleyz"
+    if "@vea" in lower:
+        return "vea"
+    return None
+
+
+_AGENT_ROUTING_PROMPTS = {
+    "milo": (
+        "The user tagged @Milo (Growth & Strategy). Prioritize competitor intelligence, "
+        "market demand, and hook tests. Use the workspace snapshot below."
+    ),
+    "sleyz": (
+        "The user tagged @Sleyz (Sales & Pipeline). Prioritize Telegram DM prospects, "
+        "pipeline stages, and closing actions. Use the workspace snapshot below."
+    ),
+    "vea": (
+        "The user tagged @Vea (Media & Editor). Prioritize render queue, completed assets, "
+        "and approve-to-post workflow. Use the workspace snapshot below."
+    ),
+}
+
+
+@app.get("/api/workspace/pipeline")
+async def workspace_pipeline(user: Annotated[dict, Depends(get_current_user)]):
+    return fetch_pipeline(str(user["org_id"]))
+
+
+@app.get("/api/workspace/competitors")
+async def workspace_competitors(user: Annotated[dict, Depends(get_current_user)]):
+    return fetch_competitors(str(user["org_id"]))
+
+
+@app.get("/api/workspace/dashboard")
+async def workspace_dashboard(user: Annotated[dict, Depends(get_current_user)]):
+    return fetch_dashboard(str(user["org_id"]))
+
+
+@app.get("/api/workspace/milo")
+async def workspace_milo(user: Annotated[dict, Depends(get_current_user)]):
+    org_id = str(user["org_id"])
+    return {**fetch_milo_insights(org_id), **fetch_competitors(org_id)}
+
+
+@app.get("/api/workspace/media")
+async def workspace_media(user: Annotated[dict, Depends(get_current_user)]):
+    return fetch_media_queue(str(user["org_id"]))
+
+
+@app.post("/api/workspace/media/{job_id}/approve")
+async def workspace_media_approve(
+    job_id: str,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    result = approve_media_job(str(user["org_id"]), job_id)
+    if not result.get("ok"):
+        raise HTTPException(status_code=404, detail=result.get("error", "Not found"))
+    return result
+
+
 @app.post("/chat")
 async def chat(
     request: ChatRequest,
@@ -741,6 +813,14 @@ async def chat(
     copilot_system = (
         f"{SYSTEM_PROMPT}\n\n{language_instruction(lang, uz_script='latin')}"
     )
+
+    routing_agent = _parse_routing_agent(request.message)
+    if routing_agent:
+        routing_note = _AGENT_ROUTING_PROMPTS.get(routing_agent, "")
+        workspace_ctx = build_routing_context(org_id, routing_agent)
+        copilot_system = (
+            f"{copilot_system}\n\n{routing_note}\n{workspace_ctx}"
+        )
 
     return StreamingResponse(
         stream_response(messages, conversation_id, system_prompt=copilot_system),
