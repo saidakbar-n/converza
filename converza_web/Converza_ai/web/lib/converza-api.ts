@@ -3,11 +3,15 @@ import { authHeaders } from "./auth";
 const API_BASE =
   process.env.NEXT_PUBLIC_CONVERZA_API_URL?.replace(/\/$/, "") || "";
 
-/** Same-origin `/api/*` proxy when API_BASE empty; else direct FastAPI. */
-function workspaceUrl(path: string): string {
+/** Resolve backend path: same-origin FastAPI when API_BASE empty; else direct backend URL. */
+export function apiUrl(path: string): string {
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  if (API_BASE) return `${API_BASE}${normalized}`;
-  return `/api/proxy${normalized}`;
+  const resolved =
+    normalized.startsWith("/api/") || normalized === "/chat"
+      ? normalized
+      : `/api${normalized}`;
+  if (API_BASE) return `${API_BASE}${resolved}`;
+  return resolved;
 }
 
 export class ApiError extends Error {
@@ -19,7 +23,7 @@ export class ApiError extends Error {
 }
 
 export async function fetchWorkspace<T>(path: string): Promise<T> {
-  const res = await fetch(workspaceUrl(path), {
+  const res = await fetch(apiUrl(path), {
     headers: { ...authHeaders() },
     cache: "no-store",
   });
@@ -31,7 +35,7 @@ export async function fetchWorkspace<T>(path: string): Promise<T> {
 }
 
 export async function postWorkspace<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(workspaceUrl(path), {
+  const res = await fetch(apiUrl(path), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: body ? JSON.stringify(body) : undefined,

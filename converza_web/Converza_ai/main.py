@@ -1177,20 +1177,20 @@ async def landing_page():
     )
 
 
-@app.get("/app")
-async def app_page():
-    """Authenticated DM Closer / Co-Pilot dashboard."""
-    return FileResponse(
-        "static/app.html",
-        headers={"Cache-Control": "no-store, max-age=0"},
-    )
-
-
 @app.get("/admin")
 async def admin_page():
     return FileResponse(
         "static/admin.html",
         headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+THEATER_DIR = os.path.join(os.path.dirname(__file__), "static", "theater")
+if os.path.isdir(THEATER_DIR):
+    app.mount(
+        "/app",
+        StaticFiles(directory=THEATER_DIR, html=True),
+        name="theater",
     )
 
 

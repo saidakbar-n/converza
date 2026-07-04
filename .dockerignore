@@ -15,3 +15,6 @@
 !deploy/**/*.md
 converza_web/Converza_ai/.next
 **/.DS_Store
+converza_web/Converza_ai/web/.next
+converza_web/Converza_ai/web/out
+converza_web/Converza_ai/web/node_modules

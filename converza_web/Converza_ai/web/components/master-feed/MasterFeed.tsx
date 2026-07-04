@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { ArrowUp, Loader2, Sparkles } from "lucide-react";
 import { authHeaders, getStoredAuth } from "@/lib/auth";
+import { apiUrl } from "@/lib/converza-api";
 
 interface Message {
   id: string;
@@ -26,7 +27,7 @@ async function streamChat(
   onDone: () => void,
   onError: (err: string) => void,
 ) {
-  const response = await fetch("/api/chat", {
+  const response = await fetch(apiUrl("/chat"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
