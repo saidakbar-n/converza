@@ -91,6 +91,7 @@ export default function MasterFeed() {
   const [loading, setLoading] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -108,7 +109,11 @@ export default function MasterFeed() {
   }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollRef.current;
+    if (!el) return;
+    const last = messages[messages.length - 1];
+    const behavior = last?.streaming ? "auto" : "smooth";
+    el.scrollTo({ top: el.scrollHeight, behavior });
   }, [messages]);
 
   const send = useCallback(async () => {
@@ -195,7 +200,7 @@ export default function MasterFeed() {
         </div>
       </header>
 
-      <div className="flex-1 space-y-3 overflow-y-auto px-3 py-4">
+      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4">
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -239,9 +244,9 @@ export default function MasterFeed() {
                 send();
               }
             }}
-            rows={2}
+            rows={1}
             placeholder="Message the Manager… @Milo @Sleyz @Vea"
-            className="max-h-28 min-h-[44px] flex-1 resize-none bg-transparent text-[13px] leading-snug text-text-primary outline-none placeholder:text-text-muted"
+            className="max-h-28 min-h-[36px] flex-1 resize-none bg-transparent py-1.5 text-[13px] leading-snug text-text-primary outline-none placeholder:text-text-muted"
           />
           <button
             type="button"

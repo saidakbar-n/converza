@@ -43,16 +43,16 @@ export default function TheaterOfWorkLayout({ children }: TheaterOfWorkLayoutPro
         onOpen={() => setNavOpen(true)}
       />
 
-      {/* ── Desktop: panes 2 + 3 ── */}
-      <div className="hidden min-w-0 flex-1 md:flex">
-        <div className="w-[var(--master-feed-width)] shrink-0">
+      {/* ── Desktop: panes 2 + 3 (offset for fixed sidebar) ── */}
+      <div className="hidden min-h-0 min-w-0 flex-1 md:flex md:pl-[var(--sidebar-width)]">
+        <div className="flex h-full w-[var(--master-feed-width)] shrink-0 flex-col overflow-hidden">
           <MasterFeed />
         </div>
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
       </div>
 
       {/* ── Mobile: pane 2 primary; pane 3 = drawer ── */}
-      <div className="relative flex min-w-0 flex-1 flex-col md:hidden">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden">
         <MasterFeed />
 
         {showWorkspaceDrawer && (
