@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rebuild and restart only the web container (Next.js Theater + FastAPI).
+# Rebuild and restart only the web container (FastAPI + static/theater).
 # Run ON THE VPS from /opt/converza:
 #   sudo ./scripts/redeploy-web.sh
 #
@@ -13,14 +13,18 @@ cd "$ROOT"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 
 echo "==> Git at $(git log -1 --oneline)"
-if ! grep -q 'FROM node:20-alpine AS frontend' converza_web/Converza_ai/Dockerfile 2>/dev/null; then
-  echo "ERROR: Dockerfile missing Next.js build stage — run: sudo ./scripts/vps-sync.sh" >&2
+if ! test -f converza_web/Converza_ai/static/theater/index.html; then
+  echo "ERROR: static/theater/ missing — run: ./scripts/build-theater.sh && git add static/theater" >&2
+  exit 1
+fi
+if ! grep -q 'static/theater/index.html' converza_web/Converza_ai/Dockerfile 2>/dev/null; then
+  echo "ERROR: Dockerfile outdated — git pull" >&2
   exit 1
 fi
 
 echo ""
-echo "==> Building web image (Next.js static export + FastAPI)"
-docker compose -f "$COMPOSE_FILE" build --no-cache web
+echo "==> Building web image (FastAPI + pre-built static/theater)"
+docker compose -f "$COMPOSE_FILE" build web
 
 echo ""
 echo "==> Restarting web container"

@@ -32,5 +32,6 @@ htmlcov/
 # Local dev artifacts
 *.pdf
 docker/local/data/
-converza_web/Converza_ai/static/theater/
 converza_web/Converza_ai/web/out/
+converza_web/Converza_ai/web/.next/
+converza_web/Converza_ai/web/node_modules/

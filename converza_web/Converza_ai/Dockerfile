@@ -1,13 +1,5 @@
-# Stage 1 — Next.js static export (Theater UI at /app)
-FROM node:20-alpine AS frontend
-
-WORKDIR /build
-COPY converza_web/Converza_ai/web/package.json converza_web/Converza_ai/web/package-lock.json ./
-RUN npm ci
-COPY converza_web/Converza_ai/web/ ./
-RUN npm run build
-
-# Stage 2 — FastAPI + static theater
+# FastAPI only — Theater UI is pre-built static files in static/theater/
+# (run scripts/build-theater.sh locally or in CI when web/ changes)
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -21,7 +13,8 @@ COPY converza_web/Converza_ai/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY converza_web/Converza_ai/ .
-COPY --from=frontend /build/out ./static/theater
+
+RUN test -f static/theater/index.html || (echo "ERROR: static/theater/ missing — run: ./scripts/build-theater.sh" >&2 && exit 1)
 
 USER appuser
 

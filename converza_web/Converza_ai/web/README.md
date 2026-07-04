@@ -1,12 +1,29 @@
-# Converza Theater UI (Next.js)
+# Theater UI source (React)
 
-## Production
+**This is not a backend and not a production server.**
 
-Built as a static export (`output: 'export'`, `basePath: '/app'`) and copied into `static/theater/` by the multi-stage Docker build. FastAPI serves it at `/app` on port 8001 — no separate Next.js process.
+All APIs live in FastAPI (`../main.py`). This folder is UI source code only.
 
-## Local development
+## How production works
 
-Run the Next.js dev server and point API calls at FastAPI:
+1. `npm run build` compiles React → plain HTML/JS/CSS in `web/out/`
+2. `scripts/build-theater.sh` copies `out/` → `../static/theater/`
+3. FastAPI serves `static/theater/` at `/app` (same pattern as `static/landing.html`)
+4. Docker image is **Python only** — no Node on the VPS
+
+There is no Next.js process in production. No API routes in this app.
+
+## When you change the UI
+
+```bash
+./scripts/build-theater.sh
+git add converza_web/Converza_ai/static/theater converza_web/Converza_ai/web/
+git commit -m "..."
+```
+
+Then on VPS: `sudo ./scripts/redeploy-web.sh`
+
+## Local dev (optional)
 
 ```bash
 cd web
@@ -14,16 +31,4 @@ npm install
 NEXT_PUBLIC_CONVERZA_API_URL=http://127.0.0.1:8001 npm run dev
 ```
 
-Theater UI: http://localhost:3000/app
-
-Run FastAPI separately on :8001 (from repo root or `Converza_ai/`).
-
-## Static export (CI / manual)
-
-```bash
-cd web
-npm ci
-npm run build   # writes to web/out/
-```
-
-To preview with FastAPI locally, copy `web/out/` to `static/theater/` and start uvicorn.
+Theater preview: http://localhost:3000/app — API calls go to FastAPI on :8001.
