@@ -54,6 +54,7 @@ from services.session import (
     get_current_user,
     is_admin_telegram_id,
 )
+from services.telegram_auth import verify_telegram_auth
 from services.workspace_data import (
     approve_media_job,
     build_routing_context,
