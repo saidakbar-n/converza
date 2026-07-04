@@ -301,7 +301,12 @@ async def stream_response(
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "Converza Co-Pilot"}
+    theater_dir = os.path.join(os.path.dirname(__file__), "static", "theater")
+    return {
+        "status": "ok",
+        "service": "Converza Co-Pilot",
+        "theater_ui": os.path.isdir(theater_dir),
+    }
 
 
 @app.get("/ready")

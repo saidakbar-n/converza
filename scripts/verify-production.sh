@@ -17,10 +17,16 @@ echo "==> Converza production verify: $BASE"
 echo ""
 
 echo "==> Health"
-if curl -fsS -m 15 "$BASE/health" | grep -q '"status"'; then
+HEALTH=$(curl -fsS -m 15 "$BASE/health" 2>/dev/null || echo '{}')
+if echo "$HEALTH" | grep -q '"status"'; then
   pass "/health"
 else
   fail "/health unreachable"
+fi
+if echo "$HEALTH" | grep -q '"theater_ui":true'; then
+  pass "/health theater_ui=true (Next.js baked into container)"
+elif echo "$HEALTH" | grep -q '"theater_ui":false'; then
+  fail "/health theater_ui=false — on VPS: sudo ./scripts/redeploy-web.sh"
 fi
 
 echo ""

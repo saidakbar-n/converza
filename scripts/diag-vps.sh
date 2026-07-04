@@ -74,5 +74,20 @@ if [[ -x "$(dirname "$0")/verify-webhooks.sh" ]]; then
 fi
 
 echo ""
-echo "==> Nginx error log (last 10 lines)"
-tail -10 /var/log/nginx/error.log 2>/dev/null || true
+echo "==> Theater UI (/app)"
+APP_HTML=$(curl -fsS -m 10 http://127.0.0.1:8001/app 2>/dev/null || echo "")
+HEALTH=$(curl -fsS -m 5 http://127.0.0.1:8001/health 2>/dev/null || echo '{}')
+echo "  /health → $HEALTH"
+if echo "$HEALTH" | grep -q '"theater_ui":true'; then
+  echo "  OK  theater_ui baked in image"
+elif echo "$HEALTH" | grep -q '"theater_ui":false'; then
+  echo "  FAIL theater_ui=false — run: sudo ./scripts/redeploy-web.sh" >&2
+fi
+if echo "$APP_HTML" | grep -q 'Converza — Co-Pilot'; then
+  echo "  OK  /app serves Theater UI"
+elif echo "$APP_HTML" | grep -q 'Converza Dashboard'; then
+  echo "  FAIL /app still legacy dashboard" >&2
+else
+  echo "  /app body (first 120 chars): $(echo "$APP_HTML" | head -c 120)"
+fi
+
