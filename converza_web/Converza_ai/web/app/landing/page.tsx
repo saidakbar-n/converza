@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState, type HTMLAttributes } from "react";
-import { useRouter } from "next/navigation";
 import TelegramLoginWidget from "@/components/auth/TelegramLoginWidget";
 import { getStoredAuth, setStoredAuth } from "@/lib/auth";
 import {
@@ -1756,7 +1755,6 @@ function AuthModal({
   copy: LandingCopy["modal"];
   onClose: () => void;
 }) {
-  const router = useRouter();
   const [step, setStep] = useState<"choices" | "signIn" | "signUp" | "telegram">("choices");
   const [values, setValues] = useState({
     phone: "",
@@ -1775,9 +1773,9 @@ function AuthModal({
         user: { first_name: result.first_name, username: result.username },
       });
       onClose();
-      router.push("/");
+      window.location.replace("/app/");
     },
-    [onClose, router],
+    [onClose],
   );
 
   const passwordChecks = {

@@ -95,6 +95,23 @@ export default function SettingsIntegrationsPage() {
       )}
       {loading && <p className="mb-4 text-[13px] text-text-muted">Loading connection status…</p>}
 
+      {!loading && !connected && (
+        <div className="mb-6 rounded-xl border border-border bg-bg-secondary px-4 py-3 text-[13px] leading-relaxed text-text-secondary">
+          <p className="font-medium text-text-primary">Link @{salesBot} to your Telegram Business account</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-4">
+            <li>Open Telegram → Settings → Telegram Business → Chatbots</li>
+            <li>Add @{salesBot} and grant message access</li>
+            <li>
+              Complete your{" "}
+              <Link href="/settings/brand" className="text-accent hover:underline">
+                Brand Passport
+              </Link>{" "}
+              so replies match your offer and tone
+            </li>
+          </ol>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-2xl border border-border bg-bg-elevated">
         {integrations.map((int, i) => (
           <motion.div

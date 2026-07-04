@@ -7,6 +7,7 @@ import { MessageSquare, PanelRightOpen, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Sidebar from "@/components/sidebar/Sidebar";
 import MasterFeed from "@/components/master-feed/MasterFeed";
+import OrgSetupBanner from "@/components/auth/OrgSetupBanner";
 
 interface TheaterOfWorkLayoutProps {
   children: React.ReactNode;
@@ -48,7 +49,10 @@ export default function TheaterOfWorkLayout({ children }: TheaterOfWorkLayoutPro
         <div className="flex h-full w-[var(--master-feed-width)] shrink-0 flex-col overflow-hidden">
           <MasterFeed />
         </div>
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <OrgSetupBanner />
+          {children}
+        </main>
       </div>
 
       {/* ── Mobile: pane 2 primary; pane 3 = drawer ── */}

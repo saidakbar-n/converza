@@ -30,11 +30,13 @@ export function getStoredAuth(): ConverzaAuth | null {
 export function setStoredAuth(auth: ConverzaAuth): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+  window.dispatchEvent(new Event("converza:auth-updated"));
 }
 
 export function clearStoredAuth(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  window.dispatchEvent(new Event("converza:auth-updated"));
 }
 
 export function authHeaders(): HeadersInit {

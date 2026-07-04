@@ -1,15 +1,17 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import AuthGuard from "@/components/auth/AuthGuard";
 import TheaterOfWorkLayout from "@/components/layout/TheaterOfWorkLayout";
 
 interface MainLayoutProps {
   children: React.ReactNode;
 }
 
-/** Routes that render outside the Theater shell (marketing only). */
+/** Routes outside the authenticated Theater shell. */
 function isStandaloneRoute(pathname: string | null) {
-  return pathname?.startsWith("/landing") ?? false;
+  if (!pathname) return false;
+  return pathname.startsWith("/landing") || pathname.startsWith("/login");
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {
@@ -19,5 +21,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
     return <>{children}</>;
   }
 
-  return <TheaterOfWorkLayout>{children}</TheaterOfWorkLayout>;
+  return (
+    <AuthGuard>
+      <TheaterOfWorkLayout>{children}</TheaterOfWorkLayout>
+    </AuthGuard>
+  );
 }

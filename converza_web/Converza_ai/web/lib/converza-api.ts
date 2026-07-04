@@ -1,4 +1,4 @@
-import { authHeaders } from "./auth";
+import { authHeaders, clearStoredAuth, getStoredAuth, setStoredAuth, type ConverzaAuth } from "./auth";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_CONVERZA_API_URL?.replace(/\/$/, "") || "";
@@ -118,6 +118,30 @@ export async function fetchAuthConfig(): Promise<AuthConfig> {
 
 export async function fetchAuthMe(): Promise<AuthMeResponse> {
   return fetchWorkspace<AuthMeResponse>("/auth/me");
+}
+
+/** Validate JWT with backend; refresh org_id from /api/auth/me. */
+export async function validateSession(): Promise<ConverzaAuth | null> {
+  const stored = getStoredAuth();
+  if (!stored?.token) return null;
+  try {
+    const me = await fetchAuthMe();
+    if (!me.ok) {
+      clearStoredAuth();
+      return null;
+    }
+    const refreshed: ConverzaAuth = {
+      ...stored,
+      orgId: me.org_id || stored.orgId,
+    };
+    if (refreshed.orgId !== stored.orgId) {
+      setStoredAuth(refreshed);
+    }
+    return refreshed;
+  } catch {
+    clearStoredAuth();
+    return null;
+  }
 }
 
 export async function postTelegramAuth(

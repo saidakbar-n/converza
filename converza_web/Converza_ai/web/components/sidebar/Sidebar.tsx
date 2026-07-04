@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
@@ -44,8 +44,13 @@ interface SidebarProps {
   onOpen: () => void;
 }
 
-import { getStoredAuth } from "@/lib/auth";
-import { ApiError, fetchBrandPassportByOrg } from "@/lib/converza-api";
+import { getStoredAuth, clearStoredAuth } from "@/lib/auth";
+import {
+  ApiError,
+  fetchBrandPassportByOrg,
+  fetchConnectionStatus,
+  fetchCopilotStatus,
+} from "@/lib/converza-api";
 
 const BRAND_NAME_STORAGE_KEY = "converza.brandName";
 
@@ -83,9 +88,12 @@ const navSections: NavSection[] = [
 
 export default function Sidebar({ open, onClose, onOpen }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [brandName, setBrandName] = useState("Converza");
   const [userName, setUserName] = useState("");
   const [userInitials, setUserInitials] = useState("?");
+  const [telegramConnected, setTelegramConnected] = useState(false);
+  const [passportReady, setPassportReady] = useState(false);
 
   useEffect(() => {
     function readBrandName() {
@@ -103,32 +111,53 @@ export default function Sidebar({ open, onClose, onOpen }: SidebarProps) {
 
   useEffect(() => {
     let cancelled = false;
-    const auth = getStoredAuth();
-    if (auth?.user?.first_name) {
-      setUserName(auth.user.first_name);
-      const initials = auth.user.first_name
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((p) => p[0]?.toUpperCase() || "")
-        .join("");
-      setUserInitials(initials || "?");
+
+    function readUser() {
+      const auth = getStoredAuth();
+      if (auth?.user?.first_name) {
+        setUserName(auth.user.first_name);
+        const initials = auth.user.first_name
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((p) => p[0]?.toUpperCase() || "")
+          .join("");
+        setUserInitials(initials || "?");
+      }
     }
-    if (!auth?.orgId) return;
+
+    readUser();
+    window.addEventListener("converza:auth-updated", readUser);
+
+    const auth = getStoredAuth();
+    if (!auth?.orgId) {
+      return () => window.removeEventListener("converza:auth-updated", readUser);
+    }
+
     (async () => {
       try {
-        const passport = await fetchBrandPassportByOrg(auth.orgId);
-        if (cancelled || !passport?.brand_name) return;
-        setBrandName(passport.brand_name);
-        window.localStorage.setItem(BRAND_NAME_STORAGE_KEY, passport.brand_name);
+        const [passport, connection, copilot] = await Promise.all([
+          fetchBrandPassportByOrg(auth.orgId),
+          fetchConnectionStatus(),
+          fetchCopilotStatus(),
+        ]);
+        if (cancelled) return;
+        if (passport?.brand_name) {
+          setBrandName(passport.brand_name);
+          window.localStorage.setItem(BRAND_NAME_STORAGE_KEY, passport.brand_name);
+        }
+        setTelegramConnected(connection.connected);
+        setPassportReady(copilot.ready);
       } catch (e) {
         if (!cancelled && e instanceof ApiError && e.status !== 404) {
           // keep local fallback
         }
       }
     })();
+
     return () => {
       cancelled = true;
+      window.removeEventListener("converza:auth-updated", readUser);
     };
   }, []);
 
@@ -219,6 +248,14 @@ export default function Sidebar({ open, onClose, onOpen }: SidebarProps) {
       </nav>
 
       <div className="mx-2.5 mb-3 border-t border-border/60 pt-3">
+        <div className="mb-2 space-y-1 px-2 font-mono text-[8px] uppercase tracking-[0.14em] text-text-muted">
+          <p className={telegramConnected ? "text-success" : "text-warning"}>
+            Telegram {telegramConnected ? "· connected" : "· not linked"}
+          </p>
+          <p className={passportReady ? "text-success" : "text-warning"}>
+            Brand passport {passportReady ? "· ready" : "· incomplete"}
+          </p>
+        </div>
         <div className="flex items-center gap-2 rounded-lg px-2 py-2">
           <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-accent-hover text-[10px] font-medium text-white">
             {userInitials}
@@ -227,9 +264,19 @@ export default function Sidebar({ open, onClose, onOpen }: SidebarProps) {
           <div className="min-w-0 flex-1">
             <p className="truncate text-[12.5px] font-medium">{userName || "Signed in"}</p>
             <p className="font-mono text-[8px] uppercase tracking-[0.16em] text-text-muted">
-              {getStoredAuth()?.token ? "Live · API" : "Sign in required"}
+              CEO · Live
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              clearStoredAuth();
+              router.replace("/login");
+            }}
+            className="shrink-0 rounded-md px-2 py-1 text-[10px] font-medium text-text-muted hover:bg-bg-hover hover:text-text-primary"
+          >
+            Sign out
+          </button>
         </div>
       </div>
     </>

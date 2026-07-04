@@ -86,7 +86,14 @@ async function streamChat(
 }
 
 export default function MasterFeed() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      content:
+        "I'm your Manager — one feed for the whole team. Route work with @Milo, @Sleyz, or @Vea. What should we ship today?",
+    },
+  ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
@@ -95,17 +102,27 @@ export default function MasterFeed() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    const auth = getStoredAuth();
-    setSignedIn(!!auth?.token);
-    setMessages([
-      {
-        id: "welcome",
-        role: "assistant",
-        content: auth?.token
-          ? "I'm your Manager — one feed for the whole team. Route work with @Milo, @Sleyz, or @Vea. What should we ship today?"
-          : "Sign in on the landing page first, then return here. Your session unlocks live pipeline, competitors, and the Co-Pilot backend.",
-      },
-    ]);
+    function refreshAuthState() {
+      const auth = getStoredAuth();
+      setSignedIn(!!auth?.token);
+      if (auth?.token) {
+        setMessages((m) =>
+          m.length === 1 && m[0]?.id === "welcome"
+            ? [
+                {
+                  id: "welcome",
+                  role: "assistant",
+                  content:
+                    "I'm your Manager — one feed for the whole team. Route work with @Milo, @Sleyz, or @Vea. What should we ship today?",
+                },
+              ]
+            : m,
+        );
+      }
+    }
+    refreshAuthState();
+    window.addEventListener("converza:auth-updated", refreshAuthState);
+    return () => window.removeEventListener("converza:auth-updated", refreshAuthState);
   }, []);
 
   useEffect(() => {
