@@ -90,7 +90,7 @@ else
   fail "/js/landing-auth.js → $AUTH_JS_CODE (rebuild web on VPS)"
 fi
 
-APP=$(curl -fsS -m 15 "$BASE/app" 2>/dev/null || echo "")
+APP=$(curl -fsSL -m 15 "$BASE/app" 2>/dev/null || echo "")
 if echo "$APP" | grep -q 'Converza — Co-Pilot'; then
   pass "/app serves Theater UI (Next.js static export)"
 elif echo "$APP" | grep -q 'Converza Dashboard'; then

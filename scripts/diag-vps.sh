@@ -75,7 +75,7 @@ fi
 
 echo ""
 echo "==> Theater UI (/app)"
-APP_HTML=$(curl -fsS -m 10 http://127.0.0.1:8001/app 2>/dev/null || echo "")
+APP_HTML=$(curl -fsSL -m 10 http://127.0.0.1:8001/app 2>/dev/null || echo "")
 HEALTH=$(curl -fsS -m 5 http://127.0.0.1:8001/health 2>/dev/null || echo '{}')
 echo "  /health → $HEALTH"
 if echo "$HEALTH" | grep -q '"theater_ui":true'; then

@@ -104,7 +104,7 @@
           token: result.token
         })
       );
-      window.location.href = "/app";
+      window.location.href = "/app/";
     } catch (error) {
       hint.textContent = error.message;
     }
@@ -123,7 +123,7 @@
         localStorage.removeItem(AUTH_STORAGE_KEY);
         return false;
       }
-      window.location.replace("/app");
+      window.location.replace("/app/");
       return true;
     } catch (_) {
       return false;

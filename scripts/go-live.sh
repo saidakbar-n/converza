@@ -146,7 +146,7 @@ echo ""
 
 echo ""
 echo "==> Theater UI (/app)"
-APP_HTML=$(curl -fsS -m 10 http://127.0.0.1:8001/app 2>/dev/null || echo "")
+APP_HTML=$(curl -fsSL -m 10 http://127.0.0.1:8001/app 2>/dev/null || echo "")
 if echo "$APP_HTML" | grep -q 'Converza — Co-Pilot'; then
   echo "  OK  Theater UI served at /app"
 elif echo "$APP_HTML" | grep -q 'Converza Dashboard'; then

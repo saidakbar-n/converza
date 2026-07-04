@@ -15,7 +15,7 @@ from converza_agent.groq_client import groq_configured
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -1192,6 +1192,12 @@ async def admin_page():
 
 THEATER_DIR = os.path.join(os.path.dirname(__file__), "static", "theater")
 if os.path.isdir(THEATER_DIR):
+
+    @app.get("/app")
+    async def theater_root():
+        """StaticFiles mount only matches /app/... — redirect bare /app."""
+        return RedirectResponse(url="/app/", status_code=307)
+
     app.mount(
         "/app",
         StaticFiles(directory=THEATER_DIR, html=True),
