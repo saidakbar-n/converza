@@ -1192,6 +1192,15 @@ if os.path.isdir(THEATER_DIR):
         StaticFiles(directory=THEATER_DIR, html=True),
         name="theater",
     )
+else:
+
+    @app.get("/app")
+    @app.get("/app/{path:path}")
+    async def theater_not_built(path: str = ""):
+        raise HTTPException(
+            status_code=503,
+            detail="Theater UI not built. Rebuild the web container: docker compose -f docker-compose.prod.yml up -d --build web",
+        )
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

@@ -85,10 +85,14 @@ else
 fi
 
 APP=$(curl -fsS -m 15 "$BASE/app" 2>/dev/null || echo "")
-if echo "$APP" | grep -q 'access-request-form'; then
+if echo "$APP" | grep -q 'Converza — Co-Pilot'; then
+  pass "/app serves Theater UI (Next.js static export)"
+elif echo "$APP" | grep -q 'Converza Dashboard'; then
+  fail "/app still serves legacy app.html — on VPS: cd /opt/converza && sudo ./scripts/vps-sync.sh && sudo ./scripts/go-live.sh"
+elif echo "$APP" | grep -q 'access-request-form'; then
   fail "/app still has duplicate access form — redeploy web on VPS"
 else
-  pass "/app duplicate access form removed"
+  fail "/app missing Theater UI — rebuild web container on VPS (go-live.sh)"
 fi
 
 echo ""

@@ -145,6 +145,18 @@ curl -fsS http://127.0.0.1:8001/ready | head -c 800 || true
 echo ""
 
 echo ""
+echo "==> Theater UI (/app)"
+APP_HTML=$(curl -fsS -m 10 http://127.0.0.1:8001/app 2>/dev/null || echo "")
+if echo "$APP_HTML" | grep -q 'Converza — Co-Pilot'; then
+  echo "  OK  Theater UI served at /app"
+elif echo "$APP_HTML" | grep -q 'Converza Dashboard'; then
+  echo "  FAIL /app still legacy app.html — rebuild web: docker compose -f $COMPOSE_FILE build --no-cache web && docker compose -f $COMPOSE_FILE up -d web" >&2
+  exit 1
+else
+  echo "  WARN /app did not return Theater UI — check web build logs" >&2
+fi
+
+echo ""
 echo "==> BotFather reminders (manual)"
 echo "  1. @ConverzaApp_bot → Bot Settings → Domain → ${DOMAIN}"
 echo "  2. @ConverzaApp_bot → Payments → Click (subscription token)"
