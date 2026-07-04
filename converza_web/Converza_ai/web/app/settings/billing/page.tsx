@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ArrowRight, Download } from "lucide-react";
+import { getStoredAuth } from "@/lib/auth";
+import { ApiError, fetchConnectionStatus } from "@/lib/converza-api";
 
 const invoices = [
   { id: "INV-0421", date: "Apr 1, 2026", amount: "$0.00", status: "Free tier" },
@@ -9,6 +12,45 @@ const invoices = [
 ];
 
 export default function BillingPage() {
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const auth = getStoredAuth();
+      if (!auth?.token) {
+        if (!cancelled) {
+          setError("Sign in via Telegram to view billing status.");
+          setLoading(false);
+        }
+        return;
+      }
+      try {
+        const status = await fetchConnectionStatus();
+        if (!cancelled) {
+          setSubscriptionActive(status.subscription_active);
+          setError(null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof ApiError ? e.message : "Failed to load billing status");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const planLabel = subscriptionActive ? "Pilot" : "Free";
+  const planNote = subscriptionActive
+    ? "Active subscription — full swarm access"
+    : "forever, for tinkerers";
+
   return (
     <div className="space-y-12">
       <header>
@@ -20,6 +62,12 @@ export default function BillingPage() {
         </p>
       </header>
 
+      {error && (
+        <p className="rounded-lg border border-error/20 bg-error-dim px-3 py-2 text-[13px] text-error">
+          {error}
+        </p>
+      )}
+
       {/* Current plan */}
       <section className="rounded-2xl border border-border bg-bg-elevated p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -29,9 +77,9 @@ export default function BillingPage() {
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-[28px] font-medium tracking-[-0.025em] text-text-primary">
-                Free
+                {loading ? "…" : planLabel}
               </span>
-              <span className="text-[14px] text-text-muted">forever, for tinkerers</span>
+              <span className="text-[14px] text-text-muted">{planNote}</span>
             </div>
             <ul className="mt-4 space-y-1.5 text-[13.5px] text-text-secondary">
               <li>· 1 brand · 1 market</li>

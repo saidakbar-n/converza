@@ -1,7 +1,15 @@
 "use client";
 
-import { useEffect, useState, type HTMLAttributes } from "react";
+import { useCallback, useEffect, useState, type HTMLAttributes } from "react";
 import { useRouter } from "next/navigation";
+import TelegramLoginWidget from "@/components/auth/TelegramLoginWidget";
+import { getStoredAuth, setStoredAuth } from "@/lib/auth";
+import {
+  ApiError,
+  fetchAuthMe,
+  submitAccessRequest,
+  type TelegramAuthResponse,
+} from "@/lib/converza-api";
 import {
   ArrowRight,
   BadgeDollarSign,
@@ -877,6 +885,25 @@ export default function ConverzaLandingPage() {
   const copy = translations[activeLanguage];
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const auth = getStoredAuth();
+      if (!auth?.token || cancelled) return;
+      try {
+        const me = await fetchAuthMe();
+        if (!cancelled && me.ok) {
+          window.location.replace("/app/");
+        }
+      } catch {
+        // stale token — user can sign in again
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 18);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -1730,7 +1757,7 @@ function AuthModal({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [step, setStep] = useState<"choices" | "signIn" | "signUp">("choices");
+  const [step, setStep] = useState<"choices" | "signIn" | "signUp" | "telegram">("choices");
   const [values, setValues] = useState({
     phone: "",
     email: "",
@@ -1739,6 +1766,19 @@ function AuthModal({
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [submittedMessage, setSubmittedMessage] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+
+  const handleTelegramSuccess = useCallback(
+    (result: TelegramAuthResponse) => {
+      setStoredAuth({
+        token: result.token,
+        orgId: result.org_id,
+        user: { first_name: result.first_name, username: result.username },
+      });
+      onClose();
+      router.push("/");
+    },
+    [onClose, router],
+  );
 
   const passwordChecks = {
     length: values.password.length >= 8,
@@ -1766,14 +1806,8 @@ function AuthModal({
   }, [open]);
 
   function continueToDashboard() {
-    setAuthLoading(true);
-    setSubmittedMessage("");
-
-    window.setTimeout(() => {
-      onClose();
-      router.push("/");
-      setAuthLoading(false);
-    }, 350);
+    setSubmittedMessage("Use Telegram sign-in for approved accounts.");
+    setStep("telegram");
   }
 
   if (!open) return null;
@@ -1810,15 +1844,19 @@ function AuthModal({
               ? step === "signUp"
                 ? "Sign Up"
                 : "Sign In"
-              : "Sign Up or Sign In"}
+              : step === "telegram"
+                ? "Sign in with Telegram"
+                : "Sign Up or Sign In"}
           </div>
           <p
             id="pilot-access-description"
             className="mt-3 max-w-[360px] text-[16px] leading-[1.5] text-stone-500"
           >
-            {isFormStep
-              ? "Enter your details to continue into Converza."
-              : "Choose how you want to access your Converza workspace."}
+            {step === "telegram"
+              ? "For approved accounts only. Use the same @username from your pilot request."
+              : isFormStep
+                ? "Email/password login is not enabled yet — use Telegram below."
+                : "Choose how you want to access your Converza workspace."}
           </p>
         </div>
 
@@ -1827,24 +1865,23 @@ function AuthModal({
             <button
               type="button"
               onClick={() => {
-                setStep("signUp");
+                setStep("telegram");
                 setSubmittedMessage("");
-                setPasswordTouched(false);
               }}
               className="w-full rounded-xl bg-[#1b5bf7] px-5 py-3 text-[15px] font-semibold uppercase tracking-wide text-white transition-transform hover:scale-[1.01] active:scale-[0.99]"
             >
-              Sign Up
+              Sign in with Telegram
             </button>
             <button
               type="button"
               onClick={() => {
-                setStep("signIn");
+                setStep("signUp");
                 setSubmittedMessage("");
                 setPasswordTouched(false);
               }}
               className="mt-2 w-full rounded-xl border border-stone-200 bg-stone-100 px-5 py-3 text-[15px] font-semibold uppercase tracking-wide text-stone-800 transition-colors hover:bg-stone-200/70"
             >
-              Sign In
+              Request access first
             </button>
 
             <div className="my-5 flex items-center gap-3 text-[14px] font-medium text-stone-500">
@@ -1882,7 +1919,7 @@ function AuthModal({
               <button
                 type="button"
                 aria-label="Continue with Telegram"
-                onClick={continueToDashboard}
+                onClick={() => setStep("telegram")}
                 className="flex flex-1 items-center justify-center rounded-xl border border-stone-200 bg-stone-50 py-3 transition-colors hover:bg-stone-100"
               >
                 <svg
@@ -1897,6 +1934,28 @@ function AuthModal({
                 </svg>
               </button>
             </div>
+          </div>
+        ) : step === "telegram" ? (
+          <div className="mt-6 space-y-4">
+            <button
+              type="button"
+              onClick={() => {
+                setStep("choices");
+                setSubmittedMessage("");
+              }}
+              className="text-[13px] font-semibold text-stone-500 transition-colors hover:text-[#1C1B19]"
+            >
+              &larr; Back to choices
+            </button>
+            <TelegramLoginWidget
+              onSuccess={handleTelegramSuccess}
+              onError={(message) => setSubmittedMessage(message)}
+            />
+            {submittedMessage ? (
+              <p className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-[13px] font-medium text-[#1C1B19]">
+                {submittedMessage}
+              </p>
+            ) : null}
           </div>
         ) : (
           <form
@@ -2034,6 +2093,8 @@ function PilotRequestModal({
   onClose: () => void;
 }) {
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [values, setValues] = useState({
     fullName: "",
     businessName: "",
@@ -2046,6 +2107,8 @@ function PilotRequestModal({
     if (!open) return;
 
     setSubmitted(false);
+    setSubmitting(false);
+    setSubmitError(null);
     setValues({
       fullName: "",
       businessName: "",
@@ -2123,9 +2186,26 @@ function PilotRequestModal({
         ) : (
           <form
             className="mt-9 space-y-5"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
-              setSubmitted(true);
+              setSubmitting(true);
+              setSubmitError(null);
+              try {
+                await submitAccessRequest({
+                  full_name: values.fullName.trim(),
+                  business_name: values.businessName.trim(),
+                  message: values.challenge.trim(),
+                  contact: values.phone.trim(),
+                  telegram_username: values.telegram.trim(),
+                });
+                setSubmitted(true);
+              } catch (e) {
+                setSubmitError(
+                  e instanceof ApiError ? e.message : "Could not submit request",
+                );
+              } finally {
+                setSubmitting(false);
+              }
             }}
           >
             <PilotRequestField
@@ -2181,11 +2261,18 @@ function PilotRequestModal({
               Use the same @username you&apos;ll log in with.
             </p>
 
+            {submitError ? (
+              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-medium text-red-700">
+                {submitError}
+              </p>
+            ) : null}
+
             <button
               type="submit"
-              className="w-full rounded-full bg-[#1b5bf7] px-6 py-4 text-[18px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              disabled={submitting}
+              className="w-full rounded-full bg-[#1b5bf7] px-6 py-4 text-[18px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
             >
-              Submit Request
+              {submitting ? "Submitting…" : "Submit Request"}
             </button>
           </form>
         )}

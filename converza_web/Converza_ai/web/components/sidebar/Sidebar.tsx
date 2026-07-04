@@ -44,6 +44,9 @@ interface SidebarProps {
   onOpen: () => void;
 }
 
+import { getStoredAuth } from "@/lib/auth";
+import { ApiError, fetchBrandPassportByOrg } from "@/lib/converza-api";
+
 const BRAND_NAME_STORAGE_KEY = "converza.brandName";
 
 const navSections: NavSection[] = [
@@ -80,12 +83,14 @@ const navSections: NavSection[] = [
 
 export default function Sidebar({ open, onClose, onOpen }: SidebarProps) {
   const pathname = usePathname();
-  const [brandName, setBrandName] = useState("Osman Skincare");
+  const [brandName, setBrandName] = useState("Converza");
+  const [userName, setUserName] = useState("");
+  const [userInitials, setUserInitials] = useState("?");
 
   useEffect(() => {
     function readBrandName() {
       const stored = window.localStorage.getItem(BRAND_NAME_STORAGE_KEY)?.trim();
-      setBrandName(stored || "Osman Skincare");
+      if (stored) setBrandName(stored);
     }
     readBrandName();
     window.addEventListener("storage", readBrandName);
@@ -93,6 +98,37 @@ export default function Sidebar({ open, onClose, onOpen }: SidebarProps) {
     return () => {
       window.removeEventListener("storage", readBrandName);
       window.removeEventListener("converza:brand-name-updated", readBrandName);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const auth = getStoredAuth();
+    if (auth?.user?.first_name) {
+      setUserName(auth.user.first_name);
+      const initials = auth.user.first_name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0]?.toUpperCase() || "")
+        .join("");
+      setUserInitials(initials || "?");
+    }
+    if (!auth?.orgId) return;
+    (async () => {
+      try {
+        const passport = await fetchBrandPassportByOrg(auth.orgId);
+        if (cancelled || !passport?.brand_name) return;
+        setBrandName(passport.brand_name);
+        window.localStorage.setItem(BRAND_NAME_STORAGE_KEY, passport.brand_name);
+      } catch (e) {
+        if (!cancelled && e instanceof ApiError && e.status !== 404) {
+          // keep local fallback
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -185,13 +221,13 @@ export default function Sidebar({ open, onClose, onOpen }: SidebarProps) {
       <div className="mx-2.5 mb-3 border-t border-border/60 pt-3">
         <div className="flex items-center gap-2 rounded-lg px-2 py-2">
           <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-accent-hover text-[10px] font-medium text-white">
-            NE
+            {userInitials}
             <Radio size={8} className="absolute -bottom-0.5 -right-0.5 text-success" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[12.5px] font-medium">Nodir</p>
+            <p className="truncate text-[12.5px] font-medium">{userName || "Signed in"}</p>
             <p className="font-mono text-[8px] uppercase tracking-[0.16em] text-text-muted">
-              CEO · Live
+              {getStoredAuth()?.token ? "Live · API" : "Sign in required"}
             </p>
           </div>
         </div>

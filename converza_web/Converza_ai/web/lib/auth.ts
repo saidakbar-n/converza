@@ -27,6 +27,16 @@ export function getStoredAuth(): ConverzaAuth | null {
   }
 }
 
+export function setStoredAuth(auth: ConverzaAuth): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+}
+
+export function clearStoredAuth(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
 export function authHeaders(): HeadersInit {
   const auth = getStoredAuth();
   if (!auth?.token) return {};
