@@ -311,7 +311,7 @@ export default function MasterFeed() {
   }
 
   return (
-    <div className="flex h-full flex-col border-r border-border bg-bg-secondary">
+    <div className="flex h-full flex-col border-l border-border bg-bg-secondary">
       <header className="flex h-14 shrink-0 items-center gap-2.5 border-b border-border/60 px-4">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-dim text-accent">
           <Sparkles size={15} strokeWidth={2} />

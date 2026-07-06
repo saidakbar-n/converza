@@ -40,8 +40,9 @@ export default function MasterFeedOverviewWorkspace() {
     <WorkspaceShell title="The Overlook" subtitle="command center overview">
       <div className="mx-auto max-w-3xl px-6 py-8 md:px-10">
         <p className="mb-8 max-w-lg text-[14.5px] leading-relaxed text-text-secondary">
-          Your Manager feed is locked on the left. Pick a department in the sidebar — Milo,
-          Sleyz, or Vea — and this pane becomes their live workspace. Route direct orders with{" "}
+          Your Manager feed is on the right — always one message away. Pick a department in the
+          sidebar — Milo, Sleyz, or Vea — and this center pane becomes their live workspace.
+          Route direct orders with{" "}
           <code className="rounded bg-bg-tertiary px-1.5 py-0.5 font-mono text-[12px]">@Milo</code>{" "}
           in the Master Feed.
         </p>
