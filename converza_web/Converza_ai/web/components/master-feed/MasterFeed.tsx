@@ -2,15 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
+import Link from "next/link";
 import { ArrowUp, Loader2, Sparkles } from "lucide-react";
 import { authHeaders, getStoredAuth } from "@/lib/auth";
-import { apiUrl } from "@/lib/converza-api";
+import { apiUrl, fetchCopilotStatus, type CopilotStatus } from "@/lib/converza-api";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   streaming?: boolean;
+  setupBanner?: SetupBanner | null;
 }
 
 interface HistoryEntry {
@@ -18,14 +20,94 @@ interface HistoryEntry {
   content: string;
 }
 
+interface SetupBanner {
+  title: string;
+  body: string;
+  links: { href: string; label: string }[];
+}
+
 const AGENT_MENTIONS = ["@Milo", "@Sleyz", "@Vea"] as const;
+
+function parseApiDetail(errText: string): string {
+  try {
+    const parsed = JSON.parse(errText) as { detail?: string };
+    if (typeof parsed.detail === "string") return parsed.detail;
+  } catch {
+    // plain text
+  }
+  return errText;
+}
+
+function setupBannerFromChatError(status: number, errText: string): SetupBanner | null {
+  const detail = parseApiDetail(errText);
+  const lower = detail.toLowerCase();
+
+  if (status === 403) {
+    if (
+      lower.includes("passport") ||
+      lower.includes("pasport") ||
+      lower.includes("not ready") ||
+      lower.includes("tayyor emas")
+    ) {
+      return {
+        title: "Brand passport required",
+        body: "Complete your brand passport so the Manager can route work to Milo, Sleyz, and Vea.",
+        links: [
+          { href: "/settings/brand", label: "Open brand passport" },
+          { href: "/settings/integrations", label: "Connect integrations" },
+        ],
+      };
+    }
+    return {
+      title: "Setup incomplete",
+      body: "Finish onboarding before using the Master Feed.",
+      links: [
+        { href: "/settings/brand", label: "Brand passport" },
+        { href: "/settings/integrations", label: "Integrations setup" },
+      ],
+    };
+  }
+
+  if (status === 503 || lower.includes("llm") || lower.includes("groq") || lower.includes("hermes")) {
+    return {
+      title: "AI runtime unavailable",
+      body: "The backend LLM is not configured yet. Check integrations or try again later.",
+      links: [{ href: "/settings/integrations", label: "View integrations" }],
+    };
+  }
+
+  return null;
+}
+
+function setupBannerFromCopilotStatus(status: CopilotStatus): SetupBanner | null {
+  if (status.ready) return null;
+  const reason = (status.reason || "").toLowerCase();
+  if (reason.includes("passport") || reason.includes("pasport") || reason.includes("incomplete")) {
+    return {
+      title: "Finish your brand passport",
+      body: status.reason || "Save your business name and core offer to unlock the Manager feed.",
+      links: [
+        { href: "/settings/brand", label: "Complete brand passport" },
+        { href: "/settings/integrations", label: "Connect Telegram" },
+      ],
+    };
+  }
+  return {
+    title: "Co-Pilot not ready",
+    body: status.reason || "Complete setup to start chatting with the Manager.",
+    links: [
+      { href: "/settings/brand", label: "Brand passport" },
+      { href: "/settings/integrations", label: "Integrations setup" },
+    ],
+  };
+}
 
 async function streamChat(
   message: string,
   history: HistoryEntry[],
   onToken: (token: string) => void,
   onDone: () => void,
-  onError: (err: string) => void,
+  onError: (err: string, status: number) => void,
 ) {
   const response = await fetch(apiUrl("/chat"), {
     method: "POST",
@@ -42,11 +124,11 @@ async function streamChat(
 
   if (!response.ok) {
     const errText = await response.text().catch(() => "");
-    onError(errText.slice(0, 200) || `Request failed: ${response.status}`);
+    onError(errText.slice(0, 400) || `Request failed: ${response.status}`, response.status);
     return;
   }
   if (!response.body) {
-    onError("No response body.");
+    onError("No response body.", response.status);
     return;
   }
 
@@ -69,7 +151,7 @@ async function streamChat(
       try {
         const payload = JSON.parse(raw);
         if (payload.error) {
-          onError(payload.error);
+          onError(payload.error, response.status);
           return;
         }
         if (payload.done) {
@@ -97,6 +179,7 @@ export default function MasterFeed() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
+  const [copilotHint, setCopilotHint] = useState<SetupBanner | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -124,6 +207,25 @@ export default function MasterFeed() {
     window.addEventListener("converza:auth-updated", refreshAuthState);
     return () => window.removeEventListener("converza:auth-updated", refreshAuthState);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!getStoredAuth()?.token) {
+        if (!cancelled) setCopilotHint(null);
+        return;
+      }
+      try {
+        const status = await fetchCopilotStatus();
+        if (!cancelled) setCopilotHint(setupBannerFromCopilotStatus(status));
+      } catch {
+        if (!cancelled) setCopilotHint(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -183,14 +285,21 @@ export default function MasterFeed() {
         );
         setLoading(false);
       },
-      (err) => {
+      (err, status) => {
+        const banner = setupBannerFromChatError(status, err);
         setMessages((m) =>
           m.map((msg) =>
             msg.id === assistantId
-              ? { ...msg, content: `Error: ${err}`, streaming: false }
+              ? {
+                  ...msg,
+                  content: banner ? "" : `Something went wrong. Please try again.`,
+                  setupBanner: banner,
+                  streaming: false,
+                }
               : msg,
           ),
         );
+        if (banner) setCopilotHint(banner);
         setLoading(false);
       },
     );
@@ -218,6 +327,23 @@ export default function MasterFeed() {
       </header>
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4">
+        {copilotHint && (
+          <div className="rounded-xl border border-warning/25 bg-warning-dim/40 px-3 py-3 text-[12.5px]">
+            <p className="font-medium text-text-primary">{copilotHint.title}</p>
+            <p className="mt-1 text-text-secondary">{copilotHint.body}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {copilotHint.links.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="rounded-full border border-border bg-bg-elevated px-2.5 py-1 text-[11px] font-medium text-text-primary hover:bg-bg-hover"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -228,7 +354,25 @@ export default function MasterFeed() {
                 : "mr-2 bg-transparent text-text-secondary",
             )}
           >
-            {msg.content}
+            {msg.setupBanner ? (
+              <div>
+                <p className="font-medium text-text-primary">{msg.setupBanner.title}</p>
+                <p className="mt-1">{msg.setupBanner.body}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {msg.setupBanner.links.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className="rounded-full border border-border bg-bg-elevated px-2.5 py-1 text-[11px] font-medium text-text-primary hover:bg-bg-hover"
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              msg.content
+            )}
             {msg.streaming && (
               <Loader2 size={12} className="mt-1 inline animate-spin text-text-muted" />
             )}

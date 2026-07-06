@@ -175,6 +175,9 @@ def upsert_passport(org_id: str, data: dict) -> dict:
     sync_organization(org_id, click_token=data.get("click_token"))
 
     full = {k: data[k] for k in DB_PASSPORT_FIELDS if k in data}
+    for key in ("competitors", "hex_colors", "avoid_topics", "brand_voice"):
+        if key in data and data[key] is not None:
+            full[key] = data[key]
     user_notes = data.get("raw_notes") or ""
     now = datetime.now(timezone.utc).isoformat()
 

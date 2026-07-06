@@ -35,7 +35,16 @@ from services.brand_passport import (
 from services.copilot_readiness import assess_copilot_readiness
 from services.i18n import copilot_reason_label, lang_from_request, t
 from services.payments import payments_configured
-from services.subscriptions import is_subscription_active
+from services.subscriptions import (
+    fetch_subscription,
+    fetch_subscription_payments,
+    is_subscription_active,
+)
+from services.subscription_billing import (
+    DEFAULT_PRICE_UZS,
+    send_subscription_invoice,
+    subscription_payments_configured,
+)
 from services.access_requests import (
     approve_request,
     create_request,
@@ -64,6 +73,9 @@ from services.workspace_data import (
     fetch_media_queue,
     fetch_milo_insights,
     fetch_pipeline,
+    fetch_pipeline_runs,
+    fetch_prospect_messages,
+    update_prospect_condition,
 )
 
 load_dotenv()
@@ -107,6 +119,10 @@ class PipelineRequest(BaseModel):
     conversation_history: list[dict] = []
 
 
+class ProspectPatchRequest(BaseModel):
+    client_condition: str
+
+
 class TelegramAuthData(BaseModel):
     id: int
     first_name: str
@@ -142,6 +158,7 @@ class DMCloserOnboardingRequest(BaseModel):
     pricing: list[dict] = []
     faq: list[dict] = []
     objections: list[dict] = []
+    competitors: list[str] = []
     raw_notes: str = ""
     click_token: str = ""
     source: str = "web_form"
@@ -561,6 +578,68 @@ async def admin_reject_request(
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+@app.get("/api/org/subscription")
+async def org_subscription(user: Annotated[dict, Depends(get_current_user)]):
+    org_id = str(user["org_id"])
+    row = fetch_subscription(org_id)
+    bot_username = os.getenv("TELEGRAM_APP_BOT_USERNAME", "ConverzaApp_bot")
+    base = {
+        "subscription_payments_configured": subscription_payments_configured(),
+        "subscription_price_uzs": DEFAULT_PRICE_UZS,
+        "upgrade_bot_username": bot_username,
+        "upgrade_deep_link": f"https://t.me/{bot_username}?start=subscribe",
+    }
+    if not row:
+        return {
+            **base,
+            "status": "inactive",
+            "current_period_start": None,
+            "current_period_end": None,
+            "amount_uzs": None,
+            "last_payment_at": None,
+            "plan": "Free",
+        }
+    active = is_subscription_active(org_id)
+    return {
+        **base,
+        "status": row.get("status") or "inactive",
+        "current_period_start": row.get("current_period_start"),
+        "current_period_end": row.get("current_period_end"),
+        "amount_uzs": row.get("amount_uzs"),
+        "last_payment_at": row.get("last_payment_at"),
+        "plan": "Pilot" if active else "Free",
+    }
+
+
+@app.get("/api/org/subscription/payments")
+async def org_subscription_payments(user: Annotated[dict, Depends(get_current_user)]):
+    org_id = str(user["org_id"])
+    rows = fetch_subscription_payments(org_id)
+    return {"payments": rows}
+
+
+@app.post("/api/org/subscription/checkout")
+async def org_subscription_checkout(user: Annotated[dict, Depends(get_current_user)]):
+    org_id = str(user["org_id"])
+    if is_subscription_active(org_id):
+        return {
+            "ok": True,
+            "already_active": True,
+            "message": "Pilot plan is already active.",
+        }
+    telegram_id = user.get("telegram_id")
+    if not telegram_id:
+        bot = os.getenv("TELEGRAM_APP_BOT_USERNAME", "ConverzaApp_bot")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Sign in with Telegram to pay. Then open @{bot} and send /subscribe.",
+        )
+    ok, detail = await send_subscription_invoice(int(telegram_id), org_id)
+    if not ok:
+        raise HTTPException(status_code=400, detail=detail)
+    return {"ok": True, "message": detail}
+
+
 @app.get("/api/org/connection-status")
 async def connection_status(user: Annotated[dict, Depends(get_current_user)]):
     org_id = str(user["org_id"])
@@ -768,6 +847,40 @@ async def workspace_media_approve(
     result = approve_media_job(str(user["org_id"]), job_id)
     if not result.get("ok"):
         raise HTTPException(status_code=404, detail=result.get("error", "Not found"))
+    return result
+
+
+@app.get("/api/workspace/pipeline-runs")
+async def workspace_pipeline_runs(user: Annotated[dict, Depends(get_current_user)]):
+    return fetch_pipeline_runs(str(user["org_id"]))
+
+
+@app.get("/api/workspace/prospects/{prospect_id}/messages")
+async def workspace_prospect_messages(
+    prospect_id: str,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    result = fetch_prospect_messages(str(user["org_id"]), prospect_id)
+    if result.get("error") == "not_found":
+        raise HTTPException(status_code=404, detail="Prospect not found")
+    return result
+
+
+@app.patch("/api/workspace/prospects/{prospect_id}")
+async def workspace_prospect_patch(
+    prospect_id: str,
+    body: ProspectPatchRequest,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    result = update_prospect_condition(
+        str(user["org_id"]),
+        prospect_id,
+        body.client_condition,
+    )
+    if not result.get("ok"):
+        if result.get("error") == "not_found":
+            raise HTTPException(status_code=404, detail="Prospect not found")
+        raise HTTPException(status_code=400, detail=result.get("error", "Invalid request"))
     return result
 
 
@@ -1100,11 +1213,15 @@ async def get_pipeline_run(
     try:
         sb = get_supabase()
         run = sb.table("dag_runs").select("*").eq("id", run_id).single().execute()
+        if str(run.data.get("user_id") or "") != str(user["org_id"]):
+            raise HTTPException(status_code=404, detail="Run not found")
         nodes = sb.table("dag_node_runs").select("*").eq("run_id", run_id).execute()
         return {
             "run": run.data,
             "nodes": nodes.data,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Run not found: {str(e)}")
 
@@ -1117,12 +1234,16 @@ async def pipeline_status(
     """Poll DAG run status."""
     try:
         sb = get_supabase()
-        run = sb.table("dag_runs").select("id, status, stage, started_at, completed_at").eq("id", run_id).single().execute()
-        nodes = sb.table("dag_node_runs").select("node_id, agent_type, status").eq("run_id", run_id).execute()
+        run = sb.table("dag_runs").select("id, user_id, status, stage, started_at, completed_at, dag_plan").eq("id", run_id).single().execute()
+        if str(run.data.get("user_id") or "") != str(user["org_id"]):
+            raise HTTPException(status_code=404, detail="Run not found")
+        nodes = sb.table("dag_node_runs").select("node_id, agent_type, status, output_payload").eq("run_id", run_id).execute()
         return {
             "run": run.data,
             "nodes": nodes.data,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Run not found: {str(e)}")
 

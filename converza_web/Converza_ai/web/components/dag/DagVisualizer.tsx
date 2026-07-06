@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import clsx from "clsx";
 import {
   Check,
@@ -335,7 +336,18 @@ function NodeCard({ node }: { node: DagNode }) {
 
       {/* Output preview */}
       {isComplete && node.output && (
-        <OutputPreview output={node.output} agentType={node.agent_type} />
+        <>
+          <OutputPreview output={node.output} agentType={node.agent_type} />
+          {node.agent_type === "ContentCreator_Agent" && (
+            <Link
+              href="/workforce/vea"
+              className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-accent hover:underline"
+            >
+              Open Vea media queue
+              <ChevronRight size={12} />
+            </Link>
+          )}
+        </>
       )}
     </div>
   );

@@ -17,6 +17,7 @@ import {
   X,
   Menu,
   MessageSquare,
+  FolderKanban,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────
@@ -63,6 +64,7 @@ const navSections: NavSection[] = [
       { id: "feed", label: "Master Feed", href: "/", icon: MessageSquare, hint: "default" },
       { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { id: "competitors", label: "Competitor Radar", href: "/competitors", icon: Crosshair },
+      { id: "projects", label: "Pipeline Runs", href: "/projects", icon: FolderKanban },
     ],
   },
   {

@@ -16,6 +16,8 @@ STAGE_BY_CONDITION: dict[str, str] = {
     "closed": "Ready to Pay",
 }
 
+VALID_CONDITIONS = frozenset({"cold", "warm", "purchasing", "closed"})
+
 
 def _prospect_display_name(prospect: dict) -> str:
     meta = prospect.get("metadata") or {}
@@ -50,6 +52,120 @@ def _latest_message(prospect_id: str) -> str:
     except Exception:
         pass
     return ""
+
+
+def _prospect_belongs_to_org(org_id: str, prospect_id: str) -> dict | None:
+    sb = get_supabase()
+    result = (
+        sb.table("prospects")
+        .select("id, org_id, client_condition, condition_reason, metadata, updated_at")
+        .eq("id", prospect_id)
+        .eq("org_id", org_id)
+        .maybe_single()
+        .execute()
+    )
+    return result.data if result else None
+
+
+def fetch_prospect_messages(org_id: str, prospect_id: str, *, limit: int = 20) -> dict[str, Any]:
+    if not _prospect_belongs_to_org(org_id, prospect_id):
+        return {"messages": [], "error": "not_found"}
+
+    sb = get_supabase()
+    rows = (
+        sb.table("messages")
+        .select("id, content, direction, sent_by, created_at")
+        .eq("org_id", org_id)
+        .eq("prospect_id", prospect_id)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    ).data or []
+
+    messages = [
+        {
+            "id": row["id"],
+            "content": row.get("content") or "",
+            "direction": row.get("direction") or "inbound",
+            "sent_by": row.get("sent_by") or "ai",
+            "created_at": row.get("created_at"),
+        }
+        for row in reversed(rows)
+    ]
+    return {"messages": messages}
+
+
+def update_prospect_condition(
+    org_id: str,
+    prospect_id: str,
+    client_condition: str,
+) -> dict[str, Any]:
+    condition = client_condition.strip().lower()
+    if condition not in VALID_CONDITIONS:
+        return {"ok": False, "error": "Invalid client_condition"}
+
+    prospect = _prospect_belongs_to_org(org_id, prospect_id)
+    if not prospect:
+        return {"ok": False, "error": "not_found"}
+
+    sb = get_supabase()
+    sb.table("prospects").update(
+        {
+            "client_condition": condition,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+    ).eq("id", prospect_id).eq("org_id", org_id).execute()
+
+    return {
+        "ok": True,
+        "id": prospect_id,
+        "client_condition": condition,
+        "stage": STAGE_BY_CONDITION.get(condition, "Warming Up"),
+    }
+
+
+def fetch_pipeline_runs(org_id: str, *, limit: int = 30) -> dict[str, Any]:
+    sb = get_supabase()
+    rows = (
+        sb.table("dag_runs")
+        .select("id, user_message, status, stage, dag_plan, started_at, completed_at")
+        .eq("user_id", org_id)
+        .order("started_at", desc=True)
+        .limit(limit)
+        .execute()
+    ).data or []
+
+    runs = []
+    for row in rows:
+        plan = row.get("dag_plan") or {}
+        if isinstance(plan, str):
+            try:
+                plan = json.loads(plan)
+            except json.JSONDecodeError:
+                plan = {}
+        runs.append(
+            {
+                "id": row["id"],
+                "user_message": row.get("user_message") or "",
+                "status": row.get("status") or "pending",
+                "stage": row.get("stage") or "",
+                "campaign_name": plan.get("campaign_name") or "",
+                "strategic_thesis": plan.get("strategic_thesis") or "",
+                "target_platforms": plan.get("target_platforms") or [],
+                "started_at": row.get("started_at"),
+                "completed_at": row.get("completed_at"),
+            }
+        )
+    return {"runs": runs}
+
+
+def _output_urls(output: dict) -> dict[str, str]:
+    urls: dict[str, str] = {}
+    for key in ("url", "video_url", "asset_url", "anchor_frame_url"):
+        val = output.get(key)
+        if val and isinstance(val, str):
+            urls[key] = val
+    return urls
 
 
 def fetch_pipeline(org_id: str) -> dict[str, Any]:
@@ -242,7 +358,11 @@ def fetch_media_queue(org_id: str) -> dict[str, Any]:
             "status": status,
             "posted": posted,
         }
-        if status in ("completed", "done"):
+        urls = _output_urls(out)
+        if urls:
+            item["output_urls"] = urls
+
+        if status in ("complete", "completed", "done"):
             completed.append(item)
         else:
             item["eta"] = "queued" if status == "pending" else "rendering"

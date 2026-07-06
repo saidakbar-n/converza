@@ -413,6 +413,15 @@ async def handle_onboarding_message(update: TelegramUpdate) -> None:
         return
 
     if text.startswith("/start"):
+        parts = text.split(maxsplit=1)
+        if len(parts) > 1 and parts[1].strip().lower() == "subscribe":
+            org_id = owner_org_id(chat_id)
+            if is_subscription_active(org_id):
+                await send_message(chat_id, subscription_status_text(org_id))
+                return
+            ok, detail = await send_subscription_invoice(chat_id, org_id)
+            await send_message(chat_id, detail)
+            return
         await send_message(chat_id, _welcome_text(chat_id))
         await _send_profile_or_prompt(chat_id, user_name)
         return

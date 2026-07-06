@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import WorkspaceShell from "@/components/layout/WorkspaceShell";
 import { ApiError, fetchWorkspace, type MiloResponse } from "@/lib/converza-api";
 
@@ -33,6 +35,7 @@ export default function MiloWorkspace() {
 
   const demandSignals = data?.demand_signals || [];
   const hooks = data?.hooks || [];
+  const needsPassport = !loading && demandSignals.length === 0 && hooks.length === 0;
 
   return (
     <WorkspaceShell title="Milo" subtitle="growth & strategy">
@@ -42,6 +45,26 @@ export default function MiloWorkspace() {
             {error}
           </p>
         )}
+
+        {needsPassport && (
+          <div className="rounded-xl border border-accent/30 bg-accent-dim/40 p-5">
+            <h2 className="text-[14px] font-medium text-text-primary">
+              Complete your brand passport
+            </h2>
+            <p className="mt-2 text-[13px] text-text-secondary">
+              Milo needs your core offer, audience, and market to generate demand signals and
+              marketing hooks.
+            </p>
+            <Link
+              href="/settings/brand"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-text-primary px-4 py-2 text-[12px] font-medium text-bg-elevated"
+            >
+              Open brand passport
+              <ArrowRight size={13} />
+            </Link>
+          </div>
+        )}
+
         <section>
           <h2 className="mb-4 text-[14px] font-medium">Live market demand</h2>
           {loading && <p className="text-[13px] text-text-muted">Loading…</p>}

@@ -47,6 +47,19 @@ export async function postWorkspace<T>(path: string, body?: unknown): Promise<T>
   return res.json() as Promise<T>;
 }
 
+export async function patchWorkspace<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(apiUrl(path), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => res.statusText);
+    throw new ApiError(res.status, detail.slice(0, 200));
+  }
+  return res.json() as Promise<T>;
+}
+
 export async function fetchPublic<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), { cache: "no-store" });
   if (!res.ok) {
@@ -98,6 +111,24 @@ export interface ConnectionStatus {
   subscription_active: boolean;
 }
 
+export interface BrandPricingItem {
+  name?: string;
+  tier?: string;
+  price?: string;
+  description?: string;
+  features?: string[];
+}
+
+export interface BrandFaqItem {
+  question: string;
+  answer: string;
+}
+
+export interface BrandObjectionItem {
+  objection: string;
+  response: string;
+}
+
 export interface BrandPassport {
   id?: string;
   org_id?: string;
@@ -108,7 +139,10 @@ export interface BrandPassport {
   core_offer?: string;
   tone?: string;
   brand_voice?: string;
-  competitors?: unknown[];
+  pricing?: BrandPricingItem[];
+  faq?: BrandFaqItem[];
+  objections?: BrandObjectionItem[];
+  competitors?: (string | Record<string, unknown>)[];
   raw_notes?: string;
 }
 
@@ -154,6 +188,47 @@ export async function fetchConnectionStatus(): Promise<ConnectionStatus> {
   return fetchWorkspace<ConnectionStatus>("/org/connection-status");
 }
 
+export interface OrgSubscription {
+  status: string;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  amount_uzs: number | null;
+  last_payment_at: string | null;
+  plan: string;
+  subscription_payments_configured: boolean;
+  subscription_price_uzs: number;
+  upgrade_bot_username: string;
+  upgrade_deep_link: string;
+}
+
+export interface SubscriptionPayment {
+  id: string;
+  amount_uzs: number;
+  period_start: string | null;
+  period_end: string | null;
+  paid_at: string;
+  telegram_payment_charge_id?: string | null;
+}
+
+export async function fetchOrgSubscription(): Promise<OrgSubscription> {
+  return fetchWorkspace<OrgSubscription>("/org/subscription");
+}
+
+export async function fetchSubscriptionPayments(): Promise<SubscriptionPayment[]> {
+  const res = await fetchWorkspace<{ payments: SubscriptionPayment[] }>(
+    "/org/subscription/payments",
+  );
+  return res.payments || [];
+}
+
+export async function startSubscriptionCheckout(): Promise<{
+  ok: boolean;
+  message: string;
+  already_active?: boolean;
+}> {
+  return postWorkspace("/org/subscription/checkout");
+}
+
 export async function fetchBrandPassportByOrg(orgId: string): Promise<BrandPassport | null> {
   try {
     return await fetchWorkspace<BrandPassport>(`/brand-passport/by-org/${orgId}`);
@@ -172,7 +247,28 @@ export interface BrandPassportUpsert {
   core_offer: string;
   tone?: string;
   brand_voice?: string;
+  pricing?: BrandPricingItem[];
+  faq?: BrandFaqItem[];
+  objections?: BrandObjectionItem[];
+  competitors?: string[];
   raw_notes?: string;
+}
+
+export async function parseBrandPassportPdf(
+  files: File[],
+): Promise<{ ok: boolean; files_processed: number; passport: BrandPassport }> {
+  const fd = new FormData();
+  files.forEach((file) => fd.append("files", file, file.name));
+  const res = await fetch(apiUrl("/dm-closer/parse-pdf"), {
+    method: "POST",
+    headers: { ...authHeaders() },
+    body: fd,
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => res.statusText);
+    throw new ApiError(res.status, detail.slice(0, 200));
+  }
+  return res.json() as Promise<{ ok: boolean; files_processed: number; passport: BrandPassport }>;
 }
 
 export async function upsertBrandPassport(payload: BrandPassportUpsert) {
@@ -213,13 +309,38 @@ export interface PipelineLead {
   id: string;
   name: string;
   stage: string;
+  condition?: string;
   last_message: string;
   channel: string;
+  updated_at?: string;
 }
 
 export interface PipelineResponse {
   columns: string[];
   leads: PipelineLead[];
+}
+
+export type ProspectCondition = "cold" | "warm" | "purchasing" | "closed";
+
+export interface ProspectMessage {
+  id: string;
+  content: string;
+  direction: string;
+  sent_by: string;
+  created_at: string;
+}
+
+export async function fetchProspectMessages(
+  prospectId: string,
+): Promise<{ messages: ProspectMessage[] }> {
+  return fetchWorkspace(`/workspace/prospects/${prospectId}/messages`);
+}
+
+export async function updateProspectCondition(
+  prospectId: string,
+  client_condition: ProspectCondition,
+): Promise<{ ok: boolean; stage: string; client_condition: string }> {
+  return patchWorkspace(`/workspace/prospects/${prospectId}`, { client_condition });
 }
 
 export interface CompetitorRival {
@@ -244,6 +365,12 @@ export interface MediaJob {
   status: string;
   eta?: string;
   posted?: boolean;
+  output_urls?: {
+    url?: string;
+    video_url?: string;
+    asset_url?: string;
+    anchor_frame_url?: string;
+  };
 }
 
 export interface MediaResponse {
@@ -255,4 +382,131 @@ export interface MiloResponse {
   demand_signals: { market: string; trend: string; confidence: string }[];
   hooks: { variant: string; text: string; ctr: string; winner: boolean }[];
   rivals?: CompetitorRival[];
+}
+
+export interface PipelineRunSummary {
+  id: string;
+  user_message: string;
+  status: string;
+  stage: string;
+  campaign_name: string;
+  strategic_thesis: string;
+  target_platforms: string[];
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface PipelineRunsResponse {
+  runs: PipelineRunSummary[];
+}
+
+export interface PipelineNodeRun {
+  id?: string;
+  node_id: string;
+  agent_type: string;
+  status: string;
+  input_payload?: Record<string, unknown>;
+  output_payload?: Record<string, unknown>;
+}
+
+export interface PipelineRunDetail {
+  run: {
+    id: string;
+    user_message: string;
+    status: string;
+    stage: string;
+    dag_plan?: DagPlanPayload | null;
+    started_at?: string | null;
+    completed_at?: string | null;
+  };
+  nodes: PipelineNodeRun[];
+}
+
+export interface DagPlanPayload {
+  strategic_thesis: string;
+  campaign_name: string;
+  target_platforms: string[];
+  nodes: {
+    node_id: string;
+    agent_type: string;
+    depends_on?: string[];
+    brief?: Record<string, unknown>;
+  }[];
+}
+
+export interface PipelineStartOptions {
+  message: string;
+  brandId?: string | null;
+  userId?: string | null;
+  userRole?: string;
+  onEvent?: (event: Record<string, unknown>) => void;
+}
+
+export async function fetchPipelineRuns(): Promise<PipelineRunsResponse> {
+  return fetchWorkspace<PipelineRunsResponse>("/workspace/pipeline-runs");
+}
+
+export async function fetchPipelineRun(runId: string): Promise<PipelineRunDetail> {
+  return fetchWorkspace<PipelineRunDetail>(`/pipeline/${runId}`);
+}
+
+export async function pollPipelineStatus(runId: string): Promise<PipelineRunDetail> {
+  const res = await fetch(apiUrl(`/pipeline/status?run_id=${encodeURIComponent(runId)}`), {
+    method: "POST",
+    headers: { ...authHeaders() },
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => res.statusText);
+    throw new ApiError(res.status, detail.slice(0, 200));
+  }
+  return res.json() as Promise<PipelineRunDetail>;
+}
+
+/** Start pipeline via SSE; resolves when stream ends with run_id if available. */
+export async function startPipeline(
+  opts: PipelineStartOptions,
+): Promise<{ runId: string | null; conversationId: string | null }> {
+  const res = await fetch(apiUrl("/pipeline"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({
+      message: opts.message,
+      brand_id: opts.brandId ?? undefined,
+      user_id: opts.userId ?? undefined,
+      user_role: opts.userRole ?? "Owner",
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => res.statusText);
+    throw new ApiError(res.status, detail.slice(0, 200));
+  }
+
+  let runId: string | null = null;
+  let conversationId: string | null = null;
+  const reader = res.body?.getReader();
+  if (!reader) return { runId, conversationId };
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      try {
+        const event = JSON.parse(line.slice(6)) as Record<string, unknown>;
+        opts.onEvent?.(event);
+        if (typeof event.run_id === "string") runId = event.run_id;
+        if (typeof event.conversation_id === "string") conversationId = event.conversation_id;
+      } catch {
+        // skip malformed SSE chunks
+      }
+    }
+  }
+
+  return { runId, conversationId };
 }

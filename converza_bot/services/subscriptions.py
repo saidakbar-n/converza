@@ -106,7 +106,21 @@ def activate_subscription(
         "updated_at": now.isoformat(),
     }
     result = sb.table("org_subscriptions").upsert(payload, on_conflict="org_id").execute()
-    return (result.data or [payload])[0]
+    saved = (result.data or [payload])[0]
+    try:
+        sb.table("org_subscription_payments").insert(
+            {
+                "org_id": org_id,
+                "amount_uzs": int(saved.get("amount_uzs") or amount_uzs or DEFAULT_PRICE_UZS),
+                "period_start": saved.get("current_period_start"),
+                "period_end": saved.get("current_period_end"),
+                "telegram_payment_charge_id": charge_id,
+                "paid_at": saved.get("last_payment_at"),
+            }
+        ).execute()
+    except Exception:
+        logger.exception("Failed to record subscription payment for %s", org_id)
+    return saved
 
 
 def subscription_status_text(org_id: str) -> str:
