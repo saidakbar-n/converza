@@ -13,7 +13,7 @@ from converza_agent.client import HermesError, get_hermes_client
 from converza_agent.config import hermes_configured
 from converza_agent.groq_client import groq_configured
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, HTTPException, Request, Response, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -64,6 +64,13 @@ from services.session import (
     get_current_user,
     is_admin_telegram_id,
 )
+from services.switchboard import (
+    VALID_AGENTS,
+    handle_squad_owner_message,
+    resolve_hitl,
+    run_agent,
+)
+from services.switchboard_repo import SwitchboardRepository
 from services.telegram_auth import verify_telegram_auth
 from services.workspace_data import (
     approve_media_job,
@@ -121,6 +128,18 @@ class PipelineRequest(BaseModel):
 
 class ProspectPatchRequest(BaseModel):
     client_condition: str
+
+
+class AgentMessageRequest(BaseModel):
+    text: str
+
+
+class SquadMessageRequest(BaseModel):
+    text: str
+
+
+class HitlEditRequest(BaseModel):
+    final_content: str | None = None
 
 
 class TelegramAuthData(BaseModel):
@@ -275,6 +294,10 @@ def build_context_block(
     lines.append("[BREND KONTEKSTI TUGADI]")
     lines.append("")
     return "\n".join(lines)
+
+
+def get_switchboard_repo() -> SwitchboardRepository:
+    return SwitchboardRepository()
 
 
 async def stream_response(
@@ -882,6 +905,192 @@ async def workspace_prospect_patch(
             raise HTTPException(status_code=404, detail="Prospect not found")
         raise HTTPException(status_code=400, detail=result.get("error", "Invalid request"))
     return result
+
+
+@app.get("/api/agents")
+async def switchboard_agents(user: Annotated[dict, Depends(get_current_user)]):
+    org_id = str(user["org_id"])
+    repo = get_switchboard_repo()
+    stats = {
+        slug: len(repo.get_agent_memory(org_id, slug, limit=20))
+        for slug in VALID_AGENTS
+    }
+    return {
+        "agents": [
+            {
+                "id": "milo",
+                "name": "Milo",
+                "role": "Growth & strategy",
+                "status": "active",
+                "metric": f"{stats['milo']} memory items",
+            },
+            {
+                "id": "sleyz",
+                "name": "Sleyz",
+                "role": "Sales & closing",
+                "status": "active",
+                "metric": f"{stats['sleyz']} memory items",
+            },
+            {
+                "id": "vea",
+                "name": "Vea",
+                "role": "Video & assets",
+                "status": "active",
+                "metric": f"{stats['vea']} memory items",
+            },
+        ]
+    }
+
+
+@app.post("/api/agent/{agent_slug}/message")
+async def switchboard_agent_message(
+    agent_slug: str,
+    body: AgentMessageRequest,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    if agent_slug not in VALID_AGENTS:
+        raise HTTPException(status_code=404, detail="Unknown agent")
+    try:
+        return await run_agent(
+            org_id=str(user["org_id"]),
+            agent_slug=agent_slug,
+            text=body.text,
+            triggered_by="owner",
+            repo=get_switchboard_repo(),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/squad/messages")
+async def switchboard_squad_messages(user: Annotated[dict, Depends(get_current_user)]):
+    rows = get_switchboard_repo().list_squad_messages(str(user["org_id"]))
+    return {"messages": rows}
+
+
+@app.get("/api/squad/activity")
+async def switchboard_squad_activity(user: Annotated[dict, Depends(get_current_user)]):
+    rows = get_switchboard_repo().list_agent_run_steps(str(user["org_id"]))
+    return {"steps": rows}
+
+
+@app.post("/api/squad/message")
+async def switchboard_squad_message(
+    body: SquadMessageRequest,
+    background_tasks: BackgroundTasks,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    org_id = str(user["org_id"])
+    repo = get_switchboard_repo()
+    payload = await handle_squad_owner_message(org_id=org_id, text=body.text, repo=repo)
+    for target in payload["routed_to"]:
+        background_tasks.add_task(
+            run_agent,
+            org_id=org_id,
+            agent_slug=target,
+            text=body.text,
+            triggered_by="owner",
+            repo=repo,
+        )
+    return payload
+
+
+@app.get("/api/squad/stream")
+async def switchboard_squad_stream(
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    org_id = str(user["org_id"])
+
+    async def events() -> AsyncGenerator[str, None]:
+        seen_messages: set[str] = set()
+        seen_steps: set[str] = set()
+        while True:
+            try:
+                repo = get_switchboard_repo()
+                for row in repo.list_squad_messages(org_id):
+                    row_id = str(row.get("id") or "")
+                    if not row_id or row_id in seen_messages:
+                        continue
+                    seen_messages.add(row_id)
+                    yield f"data: {json.dumps({'type': 'squad_message', 'row': row}, default=str)}\n\n"
+
+                for row in repo.list_agent_run_steps(org_id):
+                    row_id = str(row.get("id") or "")
+                    if not row_id or row_id in seen_steps:
+                        continue
+                    seen_steps.add(row_id)
+                    yield f"data: {json.dumps({'type': 'agent_run_step', 'row': row}, default=str)}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+            await asyncio.sleep(2)
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post("/api/hitl/{draft_id}/approve")
+async def switchboard_hitl_approve(
+    draft_id: str,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    repo = get_switchboard_repo()
+    draft = repo.get_draft(draft_id)
+    if not draft or str(draft.get("org_id")) != str(user["org_id"]):
+        raise HTTPException(status_code=404, detail="Draft not found")
+    try:
+        return await resolve_hitl(
+            draft_id=draft_id,
+            action="approve",
+            repo=repo,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Draft not found")
+
+
+@app.post("/api/hitl/{draft_id}/reject")
+async def switchboard_hitl_reject(
+    draft_id: str,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    repo = get_switchboard_repo()
+    draft = repo.get_draft(draft_id)
+    if not draft or str(draft.get("org_id")) != str(user["org_id"]):
+        raise HTTPException(status_code=404, detail="Draft not found")
+    try:
+        return await resolve_hitl(
+            draft_id=draft_id,
+            action="reject",
+            repo=repo,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Draft not found")
+
+
+@app.post("/api/hitl/{draft_id}/edit")
+async def switchboard_hitl_edit(
+    draft_id: str,
+    body: HitlEditRequest,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    repo = get_switchboard_repo()
+    draft = repo.get_draft(draft_id)
+    if not draft or str(draft.get("org_id")) != str(user["org_id"]):
+        raise HTTPException(status_code=404, detail="Draft not found")
+    try:
+        return await resolve_hitl(
+            draft_id=draft_id,
+            action="edit",
+            repo=repo,
+            edited_content=body.final_content,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Draft not found")
 
 
 @app.post("/chat")

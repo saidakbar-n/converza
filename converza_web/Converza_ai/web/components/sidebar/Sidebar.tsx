@@ -18,6 +18,7 @@ import {
   Menu,
   MessageSquare,
   FolderKanban,
+  Users,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────
@@ -65,6 +66,8 @@ const navSections: NavSection[] = [
       { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { id: "competitors", label: "Competitor Radar", href: "/competitors", icon: Crosshair },
       { id: "projects", label: "Pipeline Runs", href: "/projects", icon: FolderKanban },
+      { id: "squad", label: "Squad Chat", href: "/squad", icon: MessageSquare },
+      { id: "agents", label: "Agents", href: "/agents", icon: Users },
     ],
   },
   {

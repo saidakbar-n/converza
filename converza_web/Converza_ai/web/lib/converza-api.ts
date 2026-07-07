@@ -510,3 +510,104 @@ export async function startPipeline(
 
   return { runId, conversationId };
 }
+
+export type SwitchboardAgentId = "milo" | "sleyz" | "vea";
+
+export interface SwitchboardAgentSummary {
+  id: SwitchboardAgentId;
+  name: string;
+  role: string;
+  status: string;
+  metric: string;
+}
+
+export interface SwitchboardMessage {
+  id: string;
+  org_id: string;
+  sender_slug: string;
+  content: string;
+  mentions?: string[];
+  related_run_id?: string | null;
+  hitl_draft_id?: string | null;
+  created_at?: string;
+}
+
+export interface SwitchboardStep {
+  id: string;
+  agent_run_id: string;
+  org_id: string;
+  agent_slug: SwitchboardAgentId;
+  step_label: string;
+  step_status: "started" | "completed" | "failed" | string;
+  detail?: string | null;
+  created_at?: string;
+}
+
+export type SquadStreamEvent =
+  | { type: "squad_message"; row: SwitchboardMessage }
+  | { type: "agent_run_step"; row: SwitchboardStep }
+  | { type: "error"; error: string };
+
+export async function fetchSwitchboardAgents(): Promise<{
+  agents: SwitchboardAgentSummary[];
+}> {
+  return fetchWorkspace("/agents");
+}
+
+export async function sendAgentMessage(
+  agentId: SwitchboardAgentId,
+  text: string,
+): Promise<{
+  run_id: string;
+  agent_slug: SwitchboardAgentId;
+  response: string;
+  hitl_draft_id?: string | null;
+  mentions?: string[];
+}> {
+  return postWorkspace(`/agent/${agentId}/message`, { text });
+}
+
+export async function fetchSquadMessages(): Promise<{
+  messages: SwitchboardMessage[];
+}> {
+  return fetchWorkspace("/squad/messages");
+}
+
+export async function fetchSquadActivity(): Promise<{
+  steps: SwitchboardStep[];
+}> {
+  return fetchWorkspace("/squad/activity");
+}
+
+export async function sendSquadMessage(
+  text: string,
+): Promise<{
+  message: SwitchboardMessage;
+  routed_to: SwitchboardAgentId[];
+}> {
+  return postWorkspace("/squad/message", { text });
+}
+
+export async function resolveHitlDraft(
+  draftId: string,
+  action: "approve" | "reject" | "edit",
+  finalContent?: string,
+): Promise<{ id: string; status: string; final_content?: string | null }> {
+  return postWorkspace(`/hitl/${draftId}/${action}`, action === "edit" ? {
+    final_content: finalContent ?? "",
+  } : undefined);
+}
+
+export function createSquadEventSource(): EventSource {
+  return new EventSource(apiUrl("/squad/stream"), {
+    withCredentials: false,
+  });
+}
+
+export function parseSquadStreamEvent(raw: string): SquadStreamEvent | null {
+  try {
+    return JSON.parse(raw) as SquadStreamEvent;
+  } catch {
+    return null;
+  }
+}
