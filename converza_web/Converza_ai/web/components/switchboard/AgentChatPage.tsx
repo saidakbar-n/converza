@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, ArrowUp, Loader2 } from "lucide-react";
 import WorkspaceShell from "@/components/layout/WorkspaceShell";
 import {
   ApiError,
+  fetchAgentThread,
   sendAgentMessage,
   type SwitchboardAgentId,
 } from "@/lib/converza-api";
@@ -33,7 +34,7 @@ const agentMeta: Record<
   vea: {
     title: "Vea",
     subtitle: "video & assets",
-    placeholder: "Ask Vea for scripts, render plans, variants, or captions…",
+    placeholder: "Ask Vea for scripts or say 'render this video' to queue a 15s asset…",
   },
 };
 
@@ -45,9 +46,40 @@ export default function AgentChatPage({
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [booting, setBooting] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const meta = agentMeta[agentId];
+
+  const loadThread = useCallback(async () => {
+    const data = await fetchAgentThread(agentId);
+    setMessages(
+      (data.messages || []).map((row) => ({
+        id: String(row.id),
+        role: row.role,
+        content: row.content,
+      })),
+    );
+  }, [agentId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await loadThread();
+        if (!cancelled) setError(null);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof ApiError ? e.message : "Failed to load thread");
+        }
+      } finally {
+        if (!cancelled) setBooting(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadThread]);
 
   async function send() {
     const text = input.trim();
@@ -63,12 +95,17 @@ export default function AgentChatPage({
     setError(null);
     try {
       const result = await sendAgentMessage(agentId, text);
+      const response =
+        result.response ||
+        (result.hitl_draft_id
+          ? "Queued for approval — check Squad Chat for the render preview."
+          : "Queued. I will follow up in Squad Chat if approval is needed.");
       setMessages((m) => [
         ...m,
         {
           id: crypto.randomUUID(),
           role: "agent",
-          content: result.response || "Queued. I will follow up in Squad Chat if approval is needed.",
+          content: response,
         },
       ]);
     } catch (e) {
@@ -100,15 +137,17 @@ export default function AgentChatPage({
       <div className="flex h-full flex-col">
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-8 md:px-10">
           <p className="max-w-2xl text-[14px] leading-relaxed text-text-secondary">
-            Direct thread with {meta.title}. For cross-agent work and approvals, use Squad Chat.
+            Direct thread with {meta.title}. Cross-agent handoffs and approvals still land in Squad
+            Chat.
           </p>
           {error && (
             <p className="rounded-lg border border-error/20 bg-error-dim px-3 py-2 text-[13px] text-error">
               {error}
             </p>
           )}
+          {booting && <p className="text-[13px] text-text-muted">Loading thread…</p>}
 
-          {messages.length === 0 ? (
+          {!booting && messages.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-bg-elevated p-5 text-[13px] text-text-muted">
               Start with a concrete request. Mention another agent inside the prompt if you want a
               handoff.

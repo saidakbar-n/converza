@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-insecure-change-me")
@@ -51,15 +51,29 @@ def decode_token(token: str) -> dict:
         )
 
 
+def _token_from_request(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None,
+) -> str | None:
+    if credentials and credentials.scheme.lower() == "bearer":
+        return credentials.credentials
+    token = request.query_params.get("token")
+    if token:
+        return token.strip()
+    return None
+
+
 async def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
 ) -> dict:
-    if not credentials or credentials.scheme.lower() != "bearer":
+    token = _token_from_request(request, credentials)
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Avval Telegram orqali kiring.",
         )
-    return decode_token(credentials.credentials)
+    return decode_token(token)
 
 
 def assert_org_access(user: dict, org_id: str) -> None:
@@ -72,9 +86,10 @@ def assert_org_access(user: dict, org_id: str) -> None:
 
 
 async def get_admin_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
 ) -> dict:
-    user = await get_current_user(credentials)
+    user = await get_current_user(request, credentials)
     telegram_id = str(user.get("telegram_id", ""))
     if user.get("role") != "admin" and not is_admin_telegram_id(telegram_id):
         raise HTTPException(

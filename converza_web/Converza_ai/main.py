@@ -64,11 +64,14 @@ from services.session import (
     get_current_user,
     is_admin_telegram_id,
 )
+from services.agent_settings import DEFAULT_ROLE_MODELS, MODEL_CATALOG, catalog_payload
 from services.switchboard import (
     VALID_AGENTS,
     handle_squad_owner_message,
     resolve_hitl,
     run_agent,
+    stream_agent_completion,
+    assemble_agent_context,
 )
 from services.switchboard_repo import SwitchboardRepository
 from services.telegram_auth import verify_telegram_auth
@@ -140,6 +143,16 @@ class SquadMessageRequest(BaseModel):
 
 class HitlEditRequest(BaseModel):
     final_content: str | None = None
+
+
+class MemoryCreateRequest(BaseModel):
+    text: str
+    agent_slug: str = "milo"
+    source: str = "owner"
+
+
+class ModelSettingsRequest(BaseModel):
+    settings: dict[str, str]
 
 
 class TelegramAuthData(BaseModel):
@@ -911,35 +924,89 @@ async def workspace_prospect_patch(
 async def switchboard_agents(user: Annotated[dict, Depends(get_current_user)]):
     org_id = str(user["org_id"])
     repo = get_switchboard_repo()
-    stats = {
-        slug: len(repo.get_agent_memory(org_id, slug, limit=20))
-        for slug in VALID_AGENTS
+    run_stats = repo.agent_run_stats(org_id)
+    agents_meta = {
+        "milo": ("Milo", "Growth & strategy"),
+        "sleyz": ("Sleyz", "Sales & closing"),
+        "vea": ("Vea", "Video & assets"),
     }
     return {
         "agents": [
             {
-                "id": "milo",
-                "name": "Milo",
-                "role": "Growth & strategy",
-                "status": "active",
-                "metric": f"{stats['milo']} memory items",
-            },
-            {
-                "id": "sleyz",
-                "name": "Sleyz",
-                "role": "Sales & closing",
-                "status": "active",
-                "metric": f"{stats['sleyz']} memory items",
-            },
-            {
-                "id": "vea",
-                "name": "Vea",
-                "role": "Video & assets",
-                "status": "active",
-                "metric": f"{stats['vea']} memory items",
-            },
+                "id": slug,
+                "name": agents_meta[slug][0],
+                "role": agents_meta[slug][1],
+                "status": "active" if run_stats[slug]["failed"] == 0 else "degraded",
+                "metric": (
+                    f"{run_stats[slug]['runs']} runs"
+                    f" · {run_stats[slug]['awaiting_hitl']} pending approval"
+                ),
+                "runs": run_stats[slug]["runs"],
+                "awaiting_hitl": run_stats[slug]["awaiting_hitl"],
+            }
+            for slug in VALID_AGENTS
         ]
     }
+
+
+@app.get("/api/agent/{agent_slug}/thread")
+async def switchboard_agent_thread(
+    agent_slug: str,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    if agent_slug not in VALID_AGENTS:
+        raise HTTPException(status_code=404, detail="Unknown agent")
+    org_id = str(user["org_id"])
+    rows = get_switchboard_repo().list_agent_thread(org_id, agent_slug)
+    messages = [
+        {
+            "id": row.get("id"),
+            "role": "user" if row.get("role") == "user" else "agent",
+            "content": row.get("content") or "",
+            "created_at": row.get("created_at"),
+        }
+        for row in rows
+    ]
+    return {"messages": messages}
+
+
+@app.post("/api/agent/{agent_slug}/message/stream")
+async def switchboard_agent_message_stream(
+    agent_slug: str,
+    body: AgentMessageRequest,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    if agent_slug not in VALID_AGENTS:
+        raise HTTPException(status_code=404, detail="Unknown agent")
+
+    org_id = str(user["org_id"])
+    repo = get_switchboard_repo()
+    repo.insert_agent_memory(org_id, agent_slug, "user", body.text)
+    prompt, model_cfg = assemble_agent_context(repo, org_id, agent_slug)
+
+    async def events() -> AsyncGenerator[str, None]:
+        tokens: list[str] = []
+        try:
+            async for token in stream_agent_completion(
+                prompt=prompt,
+                user_text=body.text,
+                session_key=f"switchboard:{org_id}:{agent_slug}",
+                model_cfg=model_cfg,
+            ):
+                tokens.append(token)
+                yield f"data: {json.dumps({'token': token})}\n\n"
+            response = "".join(tokens).strip()
+            if response:
+                repo.insert_agent_memory(org_id, agent_slug, "assistant", response)
+            yield f"data: {json.dumps({'done': True, 'response': response})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/api/agent/{agent_slug}/message")
@@ -1091,6 +1158,82 @@ async def switchboard_hitl_edit(
         )
     except KeyError:
         raise HTTPException(status_code=404, detail="Draft not found")
+
+
+@app.get("/api/hitl/pending")
+async def switchboard_hitl_pending(user: Annotated[dict, Depends(get_current_user)]):
+    org_id = str(user["org_id"])
+    rows = get_switchboard_repo().list_pending_hitl(org_id)
+    return {"drafts": rows}
+
+
+@app.get("/api/settings/memory")
+async def settings_memory_list(user: Annotated[dict, Depends(get_current_user)]):
+    org_id = str(user["org_id"])
+    rows = get_switchboard_repo().list_pinned_memory(org_id)
+    return {"memories": rows}
+
+
+@app.post("/api/settings/memory")
+async def settings_memory_create(
+    body: MemoryCreateRequest,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Memory text is required")
+    agent_slug = body.agent_slug.lower()
+    if agent_slug not in VALID_AGENTS:
+        raise HTTPException(status_code=400, detail="Invalid agent_slug")
+    row = get_switchboard_repo().create_pinned_memory(
+        str(user["org_id"]),
+        content=text,
+        agent_slug=agent_slug,
+        source=body.source,
+    )
+    return {"memory": row}
+
+
+@app.delete("/api/settings/memory/{memory_id}")
+async def settings_memory_delete(
+    memory_id: str,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    ok = get_switchboard_repo().delete_agent_memory(str(user["org_id"]), memory_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    return {"ok": True}
+
+
+@app.post("/api/settings/memory/wipe")
+async def settings_memory_wipe(user: Annotated[dict, Depends(get_current_user)]):
+    count = get_switchboard_repo().wipe_agent_memory(str(user["org_id"]), pinned_only=True)
+    return {"ok": True, "deleted": count}
+
+
+@app.get("/api/settings/models")
+async def settings_models_get(user: Annotated[dict, Depends(get_current_user)]):
+    org_id = str(user["org_id"])
+    repo = get_switchboard_repo()
+    picks = repo.get_org_model_settings(org_id)
+    merged = {**DEFAULT_ROLE_MODELS, **picks}
+    return {**catalog_payload(), "picks": merged}
+
+
+@app.put("/api/settings/models")
+async def settings_models_put(
+    body: ModelSettingsRequest,
+    user: Annotated[dict, Depends(get_current_user)],
+):
+    valid_models = set(MODEL_CATALOG.keys())
+    valid_roles = set(DEFAULT_ROLE_MODELS.keys())
+    cleaned: dict[str, str] = {}
+    for role, model_id in body.settings.items():
+        if role not in valid_roles or model_id not in valid_models:
+            raise HTTPException(status_code=400, detail=f"Invalid role/model: {role}/{model_id}")
+        cleaned[role] = model_id
+    saved = get_switchboard_repo().upsert_org_model_settings(str(user["org_id"]), cleaned)
+    return {"picks": {**DEFAULT_ROLE_MODELS, **saved}}
 
 
 @app.post("/chat")

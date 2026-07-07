@@ -60,6 +60,31 @@ export async function patchWorkspace<T>(path: string, body: unknown): Promise<T>
   return res.json() as Promise<T>;
 }
 
+export async function putWorkspace<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(apiUrl(path), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => res.statusText);
+    throw new ApiError(res.status, detail.slice(0, 200));
+  }
+  return res.json() as Promise<T>;
+}
+
+export async function deleteWorkspace<T>(path: string): Promise<T> {
+  const res = await fetch(apiUrl(path), {
+    method: "DELETE",
+    headers: { ...authHeaders() },
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => res.statusText);
+    throw new ApiError(res.status, detail.slice(0, 200));
+  }
+  return res.json() as Promise<T>;
+}
+
 export async function fetchPublic<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), { cache: "no-store" });
   if (!res.ok) {
@@ -598,10 +623,91 @@ export async function resolveHitlDraft(
   } : undefined);
 }
 
+export interface AgentMemoryRow {
+  id: string;
+  org_id: string;
+  agent_slug: SwitchboardAgentId | string;
+  role: string;
+  content: string;
+  pinned?: boolean;
+  source?: string | null;
+  created_at?: string;
+}
+
+export interface HitlDraftRow {
+  id: string;
+  org_id: string;
+  agent_slug?: string | null;
+  draft_content?: string | null;
+  context_summary?: string | null;
+  status: string;
+  created_at?: string;
+}
+
+export interface ModelCatalogRole {
+  id: string;
+  label: string;
+  hint: string;
+  default_model: string;
+}
+
+export interface ModelCatalogEntry {
+  id: string;
+  label: string;
+  tag: string;
+  speed: string;
+  cost: string;
+}
+
+export async function fetchAgentThread(agentId: SwitchboardAgentId): Promise<{
+  messages: Array<{ id: string; role: "user" | "agent"; content: string; created_at?: string }>;
+}> {
+  return fetchWorkspace(`/agent/${agentId}/thread`);
+}
+
+export async function fetchPendingHitl(): Promise<{ drafts: HitlDraftRow[] }> {
+  return fetchWorkspace("/hitl/pending");
+}
+
+export async function fetchAgentMemories(): Promise<{ memories: AgentMemoryRow[] }> {
+  return fetchWorkspace("/settings/memory");
+}
+
+export async function createAgentMemory(
+  text: string,
+  agentSlug: SwitchboardAgentId = "milo",
+): Promise<{ memory: AgentMemoryRow }> {
+  return postWorkspace("/settings/memory", { text, agent_slug: agentSlug, source: "owner" });
+}
+
+export async function deleteAgentMemory(memoryId: string): Promise<{ ok: boolean }> {
+  return deleteWorkspace(`/settings/memory/${memoryId}`);
+}
+
+export async function wipeAgentMemories(): Promise<{ ok: boolean; deleted: number }> {
+  return postWorkspace("/settings/memory/wipe");
+}
+
+export async function fetchModelSettings(): Promise<{
+  roles: ModelCatalogRole[];
+  models: ModelCatalogEntry[];
+  defaults: Record<string, string>;
+  picks: Record<string, string>;
+}> {
+  return fetchWorkspace("/settings/models");
+}
+
+export async function saveModelSettings(
+  settings: Record<string, string>,
+): Promise<{ picks: Record<string, string> }> {
+  return putWorkspace("/settings/models", { settings });
+}
+
 export function createSquadEventSource(): EventSource {
-  return new EventSource(apiUrl("/squad/stream"), {
-    withCredentials: false,
-  });
+  const token = getStoredAuth()?.token;
+  const base = apiUrl("/squad/stream");
+  const url = token ? `${base}?token=${encodeURIComponent(token)}` : base;
+  return new EventSource(url, { withCredentials: false });
 }
 
 export function parseSquadStreamEvent(raw: string): SquadStreamEvent | null {

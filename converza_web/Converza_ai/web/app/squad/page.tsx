@@ -6,8 +6,10 @@ import { ArrowUp, Check, Loader2, Pencil, X } from "lucide-react";
 import WorkspaceShell from "@/components/layout/WorkspaceShell";
 import {
   ApiError,
+  createSquadEventSource,
   fetchSquadActivity,
   fetchSquadMessages,
+  parseSquadStreamEvent,
   resolveHitlDraft,
   sendSquadMessage,
   type SwitchboardMessage,
@@ -68,11 +70,28 @@ export default function SquadPage() {
   }, [load]);
 
   useEffect(() => {
-    const id = window.setInterval(() => {
-      void load().catch(() => {});
-    }, 3000);
-    return () => window.clearInterval(id);
-  }, [load]);
+    const source = createSquadEventSource();
+    source.onmessage = (event) => {
+      const payload = parseSquadStreamEvent(event.data);
+      if (!payload) return;
+      if (payload.type === "squad_message") {
+        setMessages((rows) => {
+          const exists = rows.some((row) => row.id === payload.row.id);
+          return exists ? rows : [...rows, payload.row];
+        });
+      }
+      if (payload.type === "agent_run_step") {
+        setSteps((rows) => {
+          const exists = rows.some((row) => row.id === payload.row.id);
+          return exists ? rows : [...rows, payload.row];
+        });
+      }
+    };
+    source.onerror = () => {
+      source.close();
+    };
+    return () => source.close();
+  }, []);
 
   const recentSteps = useMemo(() => steps.slice(-12).reverse(), [steps]);
 

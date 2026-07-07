@@ -1,13 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Check, ArrowUpRight, ListFilter, ShieldCheck } from "lucide-react";
 import WorkspaceShell from "@/components/layout/WorkspaceShell";
-import { ApiError, fetchWorkspace, type DashboardResponse } from "@/lib/converza-api";
+import {
+  ApiError,
+  fetchPendingHitl,
+  fetchWorkspace,
+  resolveHitlDraft,
+  type DashboardResponse,
+  type HitlDraftRow,
+} from "@/lib/converza-api";
 
 export default function DashboardWorkspace() {
   const [data, setData] = useState<DashboardResponse | null>(null);
+  const [pending, setPending] = useState<HitlDraftRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
@@ -15,9 +24,13 @@ export default function DashboardWorkspace() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetchWorkspace<DashboardResponse>("/workspace/dashboard");
+        const [dashboard, hitl] = await Promise.all([
+          fetchWorkspace<DashboardResponse>("/workspace/dashboard"),
+          fetchPendingHitl(),
+        ]);
         if (!cancelled) {
-          setData(res);
+          setData(dashboard);
+          setPending(hitl.drafts || []);
           setError(null);
         }
       } catch (e) {
@@ -33,15 +46,25 @@ export default function DashboardWorkspace() {
 
   const metrics = data?.metrics;
   const ledger = data?.ledger || [];
-  const approvals = ledger.slice(0, 1).map((e, i) => ({
-    id: `ap-${i}`,
-    eyebrow: `${e.agent} · ${e.time}`,
-    title: "Review swarm action",
-    body: e.action,
-    impact: "Pipeline update",
+  const approvals = pending.map((draft) => ({
+    id: draft.id,
+    eyebrow: `${draft.agent_slug || "agent"} · pending`,
+    title: "Review swarm draft",
+    body: (draft.draft_content || draft.context_summary || "").slice(0, 240),
+    impact: "HITL approval",
   }));
 
   const visibleApprovals = approvals.filter((a) => !dismissed.has(a.id));
+
+  async function handleApproval(draftId: string, action: "approve" | "reject") {
+    try {
+      await resolveHitlDraft(draftId, action);
+      setPending((rows) => rows.filter((row) => row.id !== draftId));
+      setDismissed((s) => new Set(s).add(draftId));
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Failed to resolve draft");
+    }
+  }
 
   return (
     <WorkspaceShell
@@ -132,13 +155,15 @@ export default function DashboardWorkspace() {
                 </p>
                 <div className="mt-4 flex gap-2">
                   <button
-                    onClick={() => setDismissed((s) => new Set(s).add(ap.id))}
+                    type="button"
+                    onClick={() => void handleApproval(ap.id, "reject")}
                     className="rounded-full border border-border px-3 py-1 text-[12px]"
                   >
                     Reject
                   </button>
                   <button
-                    onClick={() => setDismissed((s) => new Set(s).add(ap.id))}
+                    type="button"
+                    onClick={() => void handleApproval(ap.id, "approve")}
                     className="inline-flex items-center gap-1 rounded-full bg-text-primary px-3 py-1 text-[12px] text-bg-elevated"
                   >
                     <Check size={11} /> Approve
@@ -151,6 +176,9 @@ export default function DashboardWorkspace() {
             <div className="rounded-xl border border-dashed border-border p-8 text-center">
               <ShieldCheck size={20} className="mx-auto mb-2 text-text-muted" />
               <p className="text-[13px]">Caught up — swarm is autonomous.</p>
+              <Link href="/squad" className="mt-2 inline-block text-[12px] text-accent hover:underline">
+                Open Squad Chat
+              </Link>
             </div>
           )}
         </section>

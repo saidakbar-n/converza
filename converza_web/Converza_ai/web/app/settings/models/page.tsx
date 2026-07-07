@@ -1,29 +1,63 @@
 "use client";
 
-import { useState } from "react";
-import { Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Loader2 } from "lucide-react";
 import clsx from "clsx";
-
-const roles = [
-  { id: "strategist", label: "Strategist", hint: "Co-Pilot conversations + plan compilation" },
-  { id: "copywriter", label: "Copywriter", hint: "Hooks, captions, ad variants" },
-  { id: "video", label: "Video editor", hint: "Cut sequencing + B-roll selection" },
-  { id: "analyst", label: "Analyst", hint: "BudgetBrain, performance reads" },
-];
-
-const models = [
-  { id: "sonnet-4-7", label: "Claude Sonnet 4.7", tag: "Default", speed: "Fast", cost: "$3 / 1M" },
-  { id: "opus-4-7", label: "Claude Opus 4.7", tag: "Heavy reasoning", speed: "Slow", cost: "$15 / 1M" },
-  { id: "haiku-4-7", label: "Claude Haiku 4.7", tag: "Bulk runs", speed: "Instant", cost: "$0.50 / 1M" },
-];
+import {
+  ApiError,
+  fetchModelSettings,
+  saveModelSettings,
+  type ModelCatalogEntry,
+  type ModelCatalogRole,
+} from "@/lib/converza-api";
 
 export default function ModelsPage() {
-  const [picks, setPicks] = useState<Record<string, string>>({
-    strategist: "sonnet-4-7",
-    copywriter: "sonnet-4-7",
-    video: "haiku-4-7",
-    analyst: "opus-4-7",
-  });
+  const [roles, setRoles] = useState<ModelCatalogRole[]>([]);
+  const [models, setModels] = useState<ModelCatalogEntry[]>([]);
+  const [picks, setPicks] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchModelSettings();
+        if (!cancelled) {
+          setRoles(data.roles || []);
+          setModels(data.models || []);
+          setPicks(data.picks || {});
+          setError(null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof ApiError ? e.message : "Failed to load model settings");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function persist(next: Record<string, string>) {
+    setSaving(true);
+    setSaved(false);
+    setError(null);
+    try {
+      const result = await saveModelSettings(next);
+      setPicks(result.picks);
+      setSaved(true);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Failed to save model settings");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="space-y-12">
@@ -32,17 +66,29 @@ export default function ModelsPage() {
           Models
         </h2>
         <p className="mt-2 max-w-md text-[15px] leading-relaxed text-text-secondary">
-          Default LLM per role. Pick the smallest model that still does the job — the swarm runs faster and cheaper.
+          Default LLM per role. Milo and Co-Pilot share strategist; Sleyz uses copywriter; Vea uses
+          video. Changes apply on the next agent run.
         </p>
       </header>
 
+      {error && (
+        <p className="rounded-lg border border-error/20 bg-error-dim px-3 py-2 text-[13px] text-error">
+          {error}
+        </p>
+      )}
+      {saved && (
+        <p className="text-[13px] text-success">Saved — agents will use these models next run.</p>
+      )}
+      {loading && <p className="text-[13px] text-text-muted">Loading models…</p>}
+
       {roles.map((role) => (
-        <div key={role.id} className="grid grid-cols-1 gap-4 border-b border-border pb-8 last:border-b-0 md:grid-cols-[1fr_1.6fr] md:gap-10">
+        <div
+          key={role.id}
+          className="grid grid-cols-1 gap-4 border-b border-border pb-8 last:border-b-0 md:grid-cols-[1fr_1.6fr] md:gap-10"
+        >
           <div>
             <div className="text-[14px] font-medium text-text-primary">{role.label}</div>
-            <div className="mt-1 text-[12.5px] leading-relaxed text-text-muted">
-              {role.hint}
-            </div>
+            <div className="mt-1 text-[12.5px] leading-relaxed text-text-muted">{role.hint}</div>
           </div>
           <div className="space-y-2">
             {models.map((model) => {
@@ -50,9 +96,13 @@ export default function ModelsPage() {
               return (
                 <button
                   key={model.id}
-                  onClick={() =>
-                    setPicks((p) => ({ ...p, [role.id]: model.id }))
-                  }
+                  type="button"
+                  disabled={saving}
+                  onClick={() => {
+                    const next = { ...picks, [role.id]: model.id };
+                    setPicks(next);
+                    void persist(next);
+                  }}
                   className={clsx(
                     "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
                     active
@@ -89,6 +139,13 @@ export default function ModelsPage() {
           </div>
         </div>
       ))}
+
+      {saving && (
+        <p className="inline-flex items-center gap-2 text-[12px] text-text-muted">
+          <Loader2 size={14} className="animate-spin" />
+          Saving…
+        </p>
+      )}
     </div>
   );
 }

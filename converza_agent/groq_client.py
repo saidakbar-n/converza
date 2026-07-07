@@ -76,10 +76,52 @@ async def groq_complete_json(
     return extract_json_object(text)
 
 
+async def groq_complete_text(
+    system: str,
+    user_content: str,
+    *,
+    model: str | None = None,
+    max_tokens: int = 1200,
+    temperature: float = 0.5,
+) -> str:
+    key = _groq_key()
+    if not key:
+        raise RuntimeError("GROQ_API_KEY is not set")
+
+    body = {
+        "model": model or _groq_model(),
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_content},
+        ],
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.post(
+            GROQ_URL,
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+            json=body,
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(f"Groq returned {resp.status_code}: {resp.text[:500]}")
+        data = resp.json()
+
+    try:
+        return str(data["choices"][0]["message"]["content"]).strip()
+    except (KeyError, IndexError, TypeError) as exc:
+        raise RuntimeError(f"Unexpected Groq response: {data!r}") from exc
+
+
 async def groq_stream(
     system: str,
     messages: list[dict],
     *,
+    model: str | None = None,
     max_tokens: int = 4096,
     temperature: float = 0.6,
 ) -> AsyncGenerator[str, None]:
@@ -89,7 +131,7 @@ async def groq_stream(
         raise RuntimeError("GROQ_API_KEY is not set")
 
     body = {
-        "model": _groq_model(),
+        "model": model or _groq_model(),
         "messages": [{"role": "system", "content": system}, *messages],
         "stream": True,
         "max_tokens": max_tokens,
