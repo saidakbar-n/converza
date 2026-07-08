@@ -1,37 +1,53 @@
-# Environment & secrets
-.env
-.env.local
-.env.*.local
-*.pem
-
 # Python
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+.Python
 *.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
 .venv/
 venv/
-.pytest_cache/
-.mypy_cache/
+env/
+ENV/
 
-# Node (future / local)
+# Environment variables — NEVER commit
+.env
+.env.local
+.env*.local
+
+# Editor artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# pytest
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Node / Next.js
 node_modules/
 .next/
-dist/
+out/
+next-env.d.ts
+.gstack/
 
-# IDE & OS
-.idea/
-.vscode/
-.DS_Store
-*.swp
+# OpenClaw engine (cloned, not tracked)
+backend/
 
-# Build & logs
-*.log
-.coverage
-htmlcov/
-
-# Local dev artifacts
-*.pdf
-docker/local/data/
-converza_web/Converza_ai/web/out/
-converza_web/Converza_ai/web/.next/
-converza_web/Converza_ai/web/node_modules/
+# MoneyPrinterTurbo worker clone (run separately, not vendored)
+services/MoneyPrinterTurbo/
