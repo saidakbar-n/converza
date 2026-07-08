@@ -51,3 +51,4 @@ backend/
 
 # MoneyPrinterTurbo worker clone (run separately, not vendored)
 services/MoneyPrinterTurbo/
+*.pdf
