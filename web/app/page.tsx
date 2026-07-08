@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Check,
@@ -16,6 +17,7 @@ import {
   Send,
   ShieldCheck,
   ListFilter,
+  Plug,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { StatCard } from "@/components/workspace/AgentWorkspace";
@@ -97,57 +99,77 @@ function approvalFromMessage(message: SquadMessageData): Approval | null {
       ? "Review generated video asset"
       : "Review agent draft",
     body: message.hitlCard.content,
-    impact: "Human approval required before release",
+    impact: "Human approval required before use",
   };
 }
 
 export default function DashboardPage() {
   const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [editingApprovalId, setEditingApprovalId] = useState<string | null>(null);
+  const [editDrafts, setEditDrafts] = useState<Record<string, string>>({});
   const [ledger, setLedger] = useState<LedgerEvent[]>([]);
   const [stats, setStats] = useState<DashboardStat[]>(() => getDashboardStats());
 
   useEffect(() => {
     void fetchDashboardStats().then(setStats).catch(() => undefined);
 
-    const source = createSquadEventSource();
-    source.onmessage = (event) => {
-      const payload = parseSquadStreamEvent(event.data);
-      if (!payload || payload.type === "error") return;
+    let source: EventSource | null = null;
+    let cancelled = false;
 
-      if (payload.type === "agent_run_step") {
-        const next = ledgerEventFromStep(payload.row);
-        setLedger((current) => {
-          if (current.some((item) => item.id === next.id)) return current;
-          return [next, ...current].slice(0, 9);
-        });
+    void createSquadEventSource().then((nextSource) => {
+      if (cancelled) {
+        nextSource.close();
+        return;
       }
+      source = nextSource;
+      source.onmessage = (event) => {
+        const payload = parseSquadStreamEvent(event.data);
+        if (!payload || payload.type === "error") return;
 
-      if (payload.type === "squad_message") {
-        const message = mapSquadMessage(payload.row);
-        if (isHitlDecisionMessage(message) && message.hitlCard) {
-          setApprovals((current) =>
-            current.filter((approval) => approval.id !== message.hitlCard!.id),
-          );
-          void fetchDashboardStats().then(setStats).catch(() => undefined);
-          return;
-        }
-
-        const approval = approvalFromMessage(message);
-        if (approval) {
-          setApprovals((current) => {
-            if (current.some((item) => item.id === approval.id)) return current;
-            return [approval, ...current];
+        if (payload.type === "agent_run_step") {
+          const next = ledgerEventFromStep(payload.row);
+          setLedger((current) => {
+            if (current.some((item) => item.id === next.id)) return current;
+            return [next, ...current].slice(0, 9);
           });
         }
-      }
-    };
 
-    return () => source.close();
+        if (payload.type === "squad_message") {
+          const message = mapSquadMessage(payload.row);
+          if (isHitlDecisionMessage(message) && message.hitlCard) {
+            setApprovals((current) =>
+              current.filter((approval) => approval.id !== message.hitlCard!.id),
+            );
+            void fetchDashboardStats().then(setStats).catch(() => undefined);
+            return;
+          }
+
+          const approval = approvalFromMessage(message);
+          if (approval) {
+            setApprovals((current) => {
+              if (current.some((item) => item.id === approval.id)) return current;
+              return [approval, ...current];
+            });
+          }
+        }
+      };
+    });
+
+    return () => {
+      cancelled = true;
+      source?.close();
+    };
   }, []);
 
-  async function resolve(id: string, action: "approve" | "reject") {
-    await resolveHitlDraft(id, action);
+  async function resolve(id: string, action: "approve" | "reject" | "edit", finalContent?: string) {
+    await resolveHitlDraft(id, action, finalContent);
     setApprovals((arr) => arr.filter((a) => a.id !== id));
+    setEditingApprovalId(null);
+    setEditDrafts((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
     void fetchDashboardStats().then(setStats).catch(() => undefined);
   }
 
@@ -175,6 +197,28 @@ export default function DashboardPage() {
 
       <div className="flex-1 overflow-y-auto bg-white">
         <div className="mx-auto max-w-[1240px] px-6 py-8 md:px-10 md:py-12">
+          <Link
+            href="/connect-channels"
+            className="mb-6 flex flex-col gap-3 rounded-2xl border border-[#e5e5e5] bg-[#fafafa] p-4 transition-colors hover:bg-white sm:flex-row sm:items-center sm:justify-between"
+          >
+            <span className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl border border-[#e5e5e5] bg-white text-converza-blue">
+                <Plug size={17} strokeWidth={1.9} />
+              </span>
+              <span>
+                <span className="block text-[14px] font-medium tracking-[-0.01em] text-[#111111]">
+                  Connect your channels
+                </span>
+                <span className="mt-0.5 block text-[12.5px] text-[#666666]">
+                  Telegram, Instagram, TikTok, WhatsApp, and website chat setup lives here.
+                </span>
+              </span>
+            </span>
+            <span className="font-workspace-mono text-[10px] uppercase tracking-[0.12em] text-[#999999]">
+              Phase B placeholder →
+            </span>
+          </Link>
+
           <section className="mb-10 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {stats.map((stat) => (
               <StatCard key={stat.label} value={stat.value} label={stat.label} />
@@ -297,6 +341,25 @@ export default function DashboardPage() {
                       <ArrowUpRight size={11} strokeWidth={2.2} />
                       {ap.impact}
                     </div>
+                    {editingApprovalId === ap.id && (
+                      <div className="mt-4">
+                        <label className="mb-1.5 block font-workspace-mono text-[10px] uppercase tracking-[0.12em] text-[#999999]">
+                          Replacement content
+                        </label>
+                        <textarea
+                          value={editDrafts[ap.id] ?? ap.body}
+                          onChange={(event) =>
+                            setEditDrafts((current) => ({
+                              ...current,
+                              [ap.id]: event.target.value,
+                            }))
+                          }
+                          rows={5}
+                          className="w-full resize-none rounded-xl border border-[#e5e5e5] bg-[#fafafa] px-3.5 py-3 text-[13px] leading-[1.55] text-[#111111] outline-none transition-colors placeholder:text-[#999999] focus:border-converza-blue focus:bg-white"
+                          placeholder="Type the exact version you want saved..."
+                        />
+                      </div>
+                    )}
 
                     <div className="mt-5 flex items-center justify-between">
                       <button className="text-[12px] text-[#666666] transition-colors hover:text-[#111111]">
@@ -309,6 +372,31 @@ export default function DashboardPage() {
                         >
                           Reject
                         </button>
+                        {editingApprovalId === ap.id ? (
+                          <button
+                            onClick={() => {
+                              const finalContent = (editDrafts[ap.id] ?? ap.body).trim();
+                              if (finalContent) void resolve(ap.id, "edit", finalContent);
+                            }}
+                            disabled={!(editDrafts[ap.id] ?? ap.body).trim()}
+                            className="rounded-full border border-[#e5e5e5] bg-white px-4 py-1.5 text-[12.5px] font-medium text-[#111111] transition-colors hover:bg-[#f4f4f5] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Submit edit
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setEditingApprovalId(ap.id);
+                              setEditDrafts((current) => ({
+                                ...current,
+                                [ap.id]: current[ap.id] ?? ap.body,
+                              }));
+                            }}
+                            className="rounded-full border border-[#e5e5e5] bg-white px-4 py-1.5 text-[12.5px] font-medium text-[#666666] transition-colors hover:bg-[#f4f4f5] hover:text-[#111111]"
+                          >
+                            Request edit
+                          </button>
+                        )}
                         <button
                           onClick={() => void resolve(ap.id, "approve")}
                           className="inline-flex items-center gap-1.5 rounded-full bg-black px-4 py-1.5 text-[12.5px] font-medium text-white transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]"
@@ -336,7 +424,7 @@ export default function DashboardPage() {
                   />
                   <p className="text-[14px] text-[#111111]">Caught up.</p>
                   <p className="mt-1 text-[12.5px] text-[#999999]">
-                    The swarm is shipping autonomously. New approvals will surface here.
+                    The swarm is working autonomously. New approvals will surface here.
                   </p>
                 </motion.div>
               )}

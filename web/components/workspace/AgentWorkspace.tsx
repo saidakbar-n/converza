@@ -319,7 +319,7 @@ export function SquadMessage({
 }: {
   message: SquadMessageData;
   hitlStatus?: DraftStatus;
-  onHitlAction?: (status: DraftStatus) => void;
+  onHitlAction?: (status: DraftStatus, finalContent?: string) => void;
 }) {
   return (
     <article className="flex items-start gap-2.5 font-workspace-sans">
@@ -346,7 +346,7 @@ export function SquadMessage({
           <HitlCard
             card={{ ...message.hitlCard, status: hitlStatus ?? message.hitlCard.status }}
             onApprove={() => onHitlAction?.("approved")}
-            onEdit={() => onHitlAction?.("edited")}
+            onEdit={(finalContent) => onHitlAction?.("edited", finalContent)}
             onSkip={() => onHitlAction?.("rejected")}
           />
         )}
@@ -363,10 +363,13 @@ export function HitlCard({
 }: {
   card: HitlCardData;
   onApprove: () => void;
-  onEdit: () => void;
+  onEdit: (finalContent: string) => void;
   onSkip: () => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(card.content);
   const resolved = card.status !== "pending";
+  const canSubmitEdit = editText.trim().length > 0;
   const statusClass = {
     approved: "bg-sleyz-dim text-sleyz",
     edited: "bg-milo-dim text-milo",
@@ -374,8 +377,8 @@ export function HitlCard({
     pending: "",
   }[card.status];
   const statusLabel = {
-    approved: "Approved — publishing now",
-    edited: "Edit requested",
+    approved: "Approved - ready to use",
+    edited: "Edited - ready to use",
     rejected: "Skipped",
     pending: "",
   }[card.status];
@@ -388,6 +391,20 @@ export function HitlCard({
       <p className="mt-2 whitespace-pre-wrap text-[13px] leading-[1.5] text-[#111111]">
         {card.content}
       </p>
+      {!resolved && isEditing && (
+        <div className="mt-3">
+          <label className="mb-1.5 block font-workspace-mono text-[9px] uppercase tracking-[0.08em] text-[#999999]">
+            Replacement content
+          </label>
+          <textarea
+            value={editText}
+            onChange={(event) => setEditText(event.target.value)}
+            rows={4}
+            className="w-full resize-none rounded-xl border border-[#e5e5e5] bg-[#fafafa] px-3 py-2.5 text-[12.5px] leading-[1.5] text-[#111111] outline-none transition-colors placeholder:text-[#999999] focus:border-converza-blue focus:bg-white"
+            placeholder="Type the exact version you want saved..."
+          />
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap gap-2">
         {resolved ? (
           <span className={clsx("rounded-full px-2.5 py-1 font-workspace-mono text-[10px]", statusClass)}>
@@ -400,15 +417,34 @@ export function HitlCard({
               onClick={onApprove}
               className="rounded-full border border-converza-blue bg-converza-blue px-3.5 py-1.5 text-[11px] font-medium text-white"
             >
-              Approve and publish
+              Approve
             </button>
             <button
               type="button"
-              onClick={onEdit}
-              className="rounded-full border border-[#e5e5e5] px-3.5 py-1.5 text-[11px] text-[#111111] hover:bg-[#f4f4f5]"
+              onClick={() => {
+                if (!isEditing) {
+                  setIsEditing(true);
+                  return;
+                }
+                if (canSubmitEdit) onEdit(editText.trim());
+              }}
+              disabled={isEditing && !canSubmitEdit}
+              className="rounded-full border border-[#e5e5e5] px-3.5 py-1.5 text-[11px] text-[#111111] hover:bg-[#f4f4f5] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Request edit
+              {isEditing ? "Submit edit" : "Request edit"}
             </button>
+            {isEditing && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditText(card.content);
+                }}
+                className="rounded-full border border-[#e5e5e5] px-3.5 py-1.5 text-[11px] text-[#666666] hover:bg-[#f4f4f5]"
+              >
+                Cancel
+              </button>
+            )}
             <button
               type="button"
               onClick={onSkip}

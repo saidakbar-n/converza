@@ -20,6 +20,7 @@ class SwitchboardRepository(Protocol):
     async def create_draft(self, org_id: str, agent_slug: str, inbound_text: str, draft_content: str, prospect_id: str | None = None) -> dict[str, Any]: ...
     async def update_draft(self, draft_id: str, updates: dict[str, Any]) -> dict[str, Any]: ...
     async def get_draft(self, draft_id: str) -> dict[str, Any] | None: ...
+    async def get_run_id_for_draft(self, draft_id: str) -> str | None: ...
     async def get_dashboard_stats(self, org_id: str) -> list[dict[str, str]]: ...
 
 
@@ -155,6 +156,12 @@ class InMemoryRepository:
     async def get_draft(self, draft_id: str) -> dict[str, Any] | None:
         return next((row for row in self.drafts if row["id"] == draft_id), None)
 
+    async def get_run_id_for_draft(self, draft_id: str) -> str | None:
+        for row in self.squad_messages:
+            if row.get("hitl_draft_id") == draft_id and row.get("related_run_id"):
+                return row["related_run_id"]
+        return None
+
     async def get_dashboard_stats(self, org_id: str) -> list[dict[str, str]]:
         running = sum(1 for run in self.agent_runs if run["org_id"] == org_id and run["status"] == "running")
         pending = sum(1 for draft in self.drafts if draft["org_id"] == org_id and draft["status"] == "pending")
@@ -279,6 +286,20 @@ class SupabaseRepository:
     async def get_draft(self, draft_id: str) -> dict[str, Any] | None:
         result = self.client.table("drafts").select("*").eq("id", draft_id).limit(1).execute()
         return result.data[0] if result.data else None
+
+    async def get_run_id_for_draft(self, draft_id: str) -> str | None:
+        result = (
+            self.client.table("squad_messages")
+            .select("related_run_id")
+            .eq("hitl_draft_id", draft_id)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        for row in result.data or []:
+            if row.get("related_run_id"):
+                return row["related_run_id"]
+        return None
 
     async def get_dashboard_stats(self, org_id: str) -> list[dict[str, str]]:
         runs = self.client.table("agent_runs").select("id,status").eq("org_id", org_id).execute().data or []

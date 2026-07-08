@@ -11,6 +11,7 @@ import {
   MessagesSquare,
   Crosshair,
   Building2,
+  Plug,
   X,
   Settings,
 } from "lucide-react";
@@ -46,6 +47,7 @@ const navIconMap: Record<WorkspaceNavItem["id"], React.ElementType> = {
   agents: UsersRound,
   squad: MessagesSquare,
   competitors: Crosshair,
+  channels: Plug,
   office: Building2,
   settings: Settings,
 };

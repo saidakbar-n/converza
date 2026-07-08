@@ -26,6 +26,8 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { OWNER_USER_STORAGE_KEY } from "@/lib/onboarding";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const navItems = [
   { href: "#problem", label: "Problem" },
@@ -120,27 +122,27 @@ const pricingTiers = [
   {
     name: "Enterprise Pilot",
     price: "$500",
-    note: "Capabilities of a medium marketing agency. Full campaign. Prove the ROI for yourself.",
+    note: "A live pilot using Milo, Sleyz, and Vea on one real campaign.",
     cta: "Book your pilot",
     featured: true,
     features: [
-      "Complete campaign buildout",
-      "Video ad generation workflow",
-      "DM response simulation",
-      "ROI report after the pilot",
+      "Campaign hooks and angles",
+      "Vea video render workflow",
+      "Sleyz DM reply drafts",
+      "HITL approval queue",
     ],
   },
   {
     name: "The AI Operating System",
     price: "$1,500/mo",
-    note: "Full access to all 19 agents, unlimited DM closing, and dedicated processing power.",
+    note: "Ongoing access to the current three-agent workspace with manual rollout support.",
     cta: "Talk to sales",
     featured: false,
     features: [
-      "All 19 specialized agents",
-      "Unlimited inbound DM closing",
-      "Dedicated processing power",
-      "Weekly growth system review",
+      "Milo strategy and hooks",
+      "Sleyz objection handling",
+      "Vea video workflow",
+      "Human-approved outputs",
     ],
   },
 ];
@@ -310,25 +312,25 @@ const translations = {
         {
           name: "Enterprise Pilot",
           price: "$500",
-          note: "Capabilities of a medium marketing agency. Full campaign. Prove the ROI for yourself.",
+          note: "A live pilot using Milo, Sleyz, and Vea on one real campaign.",
           cta: "Book your pilot",
           features: [
-            "Complete campaign buildout",
-            "Video ad generation workflow",
-            "DM response simulation",
-            "ROI report after the pilot",
+            "Campaign hooks and angles",
+            "Vea video render workflow",
+            "Sleyz DM reply drafts",
+            "HITL approval queue",
           ],
         },
         {
           name: "The AI Operating System",
           price: "$1,500/mo",
-          note: "Full access to all 19 agents, unlimited DM closing, and dedicated processing power.",
+          note: "Ongoing access to the current three-agent workspace with manual rollout support.",
           cta: "Talk to sales",
           features: [
-            "All 19 specialized agents",
-            "Unlimited inbound DM closing",
-            "Dedicated processing power",
-            "Weekly growth system review",
+            "Milo strategy and hooks",
+            "Sleyz objection handling",
+            "Vea video workflow",
+            "Human-approved outputs",
           ],
         },
       ],
@@ -541,25 +543,25 @@ const translations = {
         {
           name: "Enterprise Pilot",
           price: "$500",
-          note: "Возможности среднего маркетингового агентства. Полная кампания. Проверьте ROI сами.",
+          note: "Живой пилот с Milo, Sleyz и Vea на одной реальной кампании.",
           cta: "Забронировать пилот",
           features: [
-            "Полная сборка кампании",
-            "Процесс генерации видео-рекламы",
-            "Симуляция DM-ответов",
-            "ROI-отчет после пилота",
+            "Хуки и углы кампании",
+            "Видео-workflow через Vea",
+            "DM-драфты от Sleyz",
+            "Очередь HITL approvals",
           ],
         },
         {
           name: "The AI Operating System",
           price: "$1,500/мес",
-          note: "Полный доступ ко всем 19 агентам, unlimited DM closing и выделенная мощность.",
+          note: "Постоянный доступ к текущему workspace из трех агентов с ручной поддержкой запуска.",
           cta: "Связаться с sales",
           features: [
-            "Все 19 специализированных агентов",
-            "Unlimited закрытие входящих DM",
-            "Выделенная вычислительная мощность",
-            "Еженедельный обзор growth-системы",
+            "Стратегия и хуки от Milo",
+            "Обработка возражений через Sleyz",
+            "Видео-workflow через Vea",
+            "Выходы с human approval",
           ],
         },
       ],
@@ -772,25 +774,25 @@ const translations = {
         {
           name: "Enterprise Pilot",
           price: "$500",
-          note: "O'rta marketing agentlik darajasidagi imkoniyat. To'liq kampaniya. ROI'ni o'zingiz isbotlang.",
+          note: "Milo, Sleyz va Vea bilan bitta real kampaniya uchun jonli pilot.",
           cta: "Pilotni band qilish",
           features: [
-            "To'liq kampaniya qurilishi",
-            "Video reklama generatsiya jarayoni",
-            "DM javob simulyatsiyasi",
-            "Pilotdan keyin ROI hisobot",
+            "Kampaniya hook va angle'lari",
+            "Vea video render workflow",
+            "Sleyz DM javob draftlari",
+            "HITL approval queue",
           ],
         },
         {
           name: "The AI Operating System",
           price: "$1,500/oy",
-          note: "Barcha 19 agent, unlimited DM closing va dedikatsiyalangan processing power.",
+          note: "Hozirgi uch agentli workspace'ga doimiy kirish va qo'lda rollout yordami.",
           cta: "Sales bilan gaplashish",
           features: [
-            "Barcha 19 maxsus agent",
-            "Unlimited kiruvchi DM closing",
-            "Dedikatsiyalangan hisoblash quvvati",
-            "Haftalik growth-system review",
+            "Milo strategy va hook'lari",
+            "Sleyz objection handling",
+            "Vea video workflow",
+            "Human-approved outputlar",
           ],
         },
       ],
@@ -912,14 +914,14 @@ export default function ConverzaLandingPage() {
         onLanguageChange={setActiveLanguage}
         onOpenAuthModal={() => setAuthModalOpen(true)}
       />
-      <HeroSection copy={copy} onOpenPilotForm={() => setPilotRequestOpen(true)} />
+      <HeroSection copy={copy} onOpenPilotForm={() => setAuthModalOpen(true)} />
       <ProblemSection copy={copy} />
       <SolutionSection copy={copy} />
       <IntegrationsSection copy={copy} />
       <AdvantageSection copy={copy} />
       <DemoSection copy={copy} />
       <FaqSection copy={copy} />
-      <PricingSection copy={copy} onOpenPilotForm={() => setPilotRequestOpen(true)} />
+      <PricingSection copy={copy} onOpenPilotForm={() => setAuthModalOpen(true)} />
       <FoundersSection copy={copy} />
       <BlogSection copy={copy} />
       <Footer copy={copy} />
@@ -1745,15 +1747,17 @@ function AuthModal({
     letter: /[A-Za-z]/.test(values.password),
     number: /\d/.test(values.password),
   };
+  const emailValid = values.email.includes("@") && values.email.includes(".");
   const passwordValid =
     passwordChecks.length && passwordChecks.letter && passwordChecks.number;
   const showPasswordHints = values.password.length > 0;
   const isFormStep = step === "signIn" || step === "signUp";
   const formValid =
-    values.phone.trim().length > 0 &&
+    values.email.trim().length > 0 &&
+    emailValid &&
     values.password.length > 0 &&
     passwordValid &&
-    (step === "signIn" || values.email.trim().length > 0);
+    (step === "signIn" || values.phone.trim().length > 0);
 
   useEffect(() => {
     if (!open) return;
@@ -1765,15 +1769,69 @@ function AuthModal({
     setAuthLoading(false);
   }, [open]);
 
-  function continueToDashboard() {
+  function continueWithSocial() {
+    setSubmittedMessage("Google and Telegram login come later. Use email and password for Phase A.");
+  }
+
+  async function submitAuth() {
+    if (!formValid) return;
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setSubmittedMessage("Supabase is not configured in the browser environment yet.");
+      return;
+    }
+
     setAuthLoading(true);
     setSubmittedMessage("");
 
-    window.setTimeout(() => {
+    try {
+      const credentials = {
+        email: values.email.trim(),
+        password: values.password,
+      };
+      const response =
+        step === "signUp"
+          ? await supabase.auth.signUp({
+              ...credentials,
+              options: {
+                data: {
+                  phone: values.phone.trim(),
+                },
+              },
+            })
+          : await supabase.auth.signInWithPassword(credentials);
+
+      if (response.error) {
+        setSubmittedMessage(response.error.message);
+        return;
+      }
+
+      const session =
+        response.data.session || (await supabase.auth.getSession()).data.session;
+      if (!session?.access_token) {
+        setSubmittedMessage(
+          step === "signUp"
+            ? "Account created. Confirm your email if Supabase asks for it, then sign in to continue."
+            : "Signed in, but Supabase did not return a usable session. Try again.",
+        );
+        return;
+      }
+
+      const userId = response.data.user?.id || session.user?.id || (await supabase.auth.getUser()).data.user?.id;
+      if (!userId) {
+        setSubmittedMessage("Account created, but Supabase did not return a user id.");
+        return;
+      }
+
+      window.localStorage.setItem(OWNER_USER_STORAGE_KEY, userId);
       onClose();
-      router.push("/");
+      router.push("/onboarding");
+    } catch (error) {
+      setSubmittedMessage(error instanceof Error ? error.message : "Authentication failed.");
+    } finally {
       setAuthLoading(false);
-    }, 350);
+    }
   }
 
   if (!open) return null;
@@ -1857,7 +1915,7 @@ function AuthModal({
               <button
                 type="button"
                 aria-label="Continue with Google"
-                onClick={continueToDashboard}
+                onClick={continueWithSocial}
                 className="flex flex-1 items-center justify-center rounded-xl border border-stone-200 bg-stone-50 py-3 transition-colors hover:bg-stone-100"
               >
                 <svg className="h-6 w-6" viewBox="0 0 24 24" aria-hidden="true">
@@ -1882,7 +1940,7 @@ function AuthModal({
               <button
                 type="button"
                 aria-label="Continue with Telegram"
-                onClick={continueToDashboard}
+                onClick={continueWithSocial}
                 className="flex flex-1 items-center justify-center rounded-xl border border-stone-200 bg-stone-50 py-3 transition-colors hover:bg-stone-100"
               >
                 <svg
@@ -1897,6 +1955,11 @@ function AuthModal({
                 </svg>
               </button>
             </div>
+            {submittedMessage ? (
+              <p className="mt-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-[13px] font-medium text-[#1C1B19]">
+                {submittedMessage}
+              </p>
+            ) : null}
           </div>
         ) : (
           <form
@@ -1910,7 +1973,7 @@ function AuthModal({
                 return;
               }
 
-              void continueToDashboard();
+              void submitAuth();
             }}
           >
             <button
@@ -1926,14 +1989,16 @@ function AuthModal({
             </button>
 
             <AuthModalInput
-              label="Phone Number"
-              name="phone"
-              type="tel"
-              inputMode="tel"
-              placeholder="+998901234567"
-              value={values.phone}
+              label={step === "signUp" ? "Phone Number" : "Email Address"}
+              name={step === "signUp" ? "phone" : "email"}
+              type={step === "signUp" ? "tel" : "email"}
+              inputMode={step === "signUp" ? "tel" : "email"}
+              placeholder={step === "signUp" ? "+998901234567" : "founder@company.com"}
+              value={step === "signUp" ? values.phone : values.email}
               onChange={(value) => {
-                setValues((current) => ({ ...current, phone: value }));
+                setValues((current) =>
+                  step === "signUp" ? { ...current, phone: value } : { ...current, email: value },
+                );
                 setSubmittedMessage("");
               }}
               autoFocus
@@ -2004,11 +2069,13 @@ function AuthModal({
 
             <button
               type="submit"
-              disabled={authLoading}
+              disabled={authLoading || !formValid}
               className="w-full rounded-xl bg-[#1b5bf7] px-5 py-3 text-[15px] font-semibold text-white transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-65"
             >
               {authLoading
-                ? "Opening dashboard..."
+                ? step === "signUp"
+                  ? "Creating account..."
+                  : "Signing in..."
                 : step === "signUp"
                   ? "Create Account"
                   : "Sign In"}
