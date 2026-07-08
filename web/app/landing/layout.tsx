@@ -24,7 +24,7 @@ const serif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "Converza — Autonomous Revenue Team",
   description:
-    "Fire your $5,000 marketing agency. Hire a 19-agent AI team that creates video ads and closes inbound DMs 24/7.",
+    "Fire your $5,000 marketing agency. Hire a team of AI agents that creates video ads and drafts inbound DM replies.",
 };
 
 export default function LandingLayout({
