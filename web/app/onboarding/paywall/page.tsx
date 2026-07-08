@@ -12,15 +12,13 @@ import {
   saveLocalAnswers,
   type OnboardingAnswers,
 } from "@/lib/onboarding";
-import { completeStubPayment, fetchOnboardingState } from "@/lib/api/onboarding";
+import { fetchOnboardingState } from "@/lib/api/onboarding";
 
 export default function PaywallPage() {
   const router = useRouter();
-  const [ownerUserId, setOwnerUserId] = useState("");
   const [answers, setAnswers] = useState<OnboardingAnswers>({});
   const [selectedPlan, setSelectedPlan] = useState("pilot");
   const [showRegret, setShowRegret] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   const analysis = useMemo(() => buildAnalysis(answers), [answers]);
 
@@ -33,7 +31,6 @@ export default function PaywallPage() {
         router.replace("/landing");
         return;
       }
-      setOwnerUserId(userId);
       const passport = await fetchOnboardingState(userId).catch(() => null);
       const nextAnswers = passport?.onboarding_answers || loadLocalAnswers();
       saveLocalAnswers(nextAnswers);
@@ -60,13 +57,6 @@ export default function PaywallPage() {
     };
   }, []);
 
-  async function finishStubPayment() {
-    if (!ownerUserId) return;
-    setLoading(true);
-    await completeStubPayment(ownerUserId);
-    router.push("/");
-  }
-
   return (
     <main
       className="min-h-screen bg-bg-primary px-4 py-8 text-text-primary"
@@ -80,10 +70,10 @@ export default function PaywallPage() {
             Choose your Converza plan
           </p>
           <h1 className="mt-4 font-serif text-[44px] leading-none tracking-[-0.045em] sm:text-[68px]">
-            Unlock the dashboard.
+            Start your pilot manually.
           </h1>
           <p className="mt-5 text-[18px] leading-relaxed text-text-secondary">
-            Payment integration coming next. For Phase A, choose a plan and click the testing button to continue.
+            Choose the plan you want to discuss. Payment is handled manually after the call by invoice, then your dashboard is unlocked.
           </p>
         </div>
 
@@ -117,20 +107,18 @@ export default function PaywallPage() {
 
         <div className="mt-8 flex flex-col gap-3 rounded-2xl border border-border bg-bg-secondary p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-[15px] font-medium text-text-primary">Testing stub</div>
+            <div className="text-[15px] font-medium text-text-primary">Manual pilot start</div>
             <p className="mt-1 text-[13px] text-text-secondary">
-              No card will be charged. This only sets paywall_status to stub_completed.
+              No card form here. We confirm fit on a call, send a Wise or Payme invoice, then mark the workspace as paid after it clears.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => void finishStubPayment()}
-            disabled={loading}
+          <a
+            href="mailto:nodir@converza.ai?subject=Book%20Converza%20pilot"
             className="inline-flex items-center justify-center gap-2 rounded-full bg-converza-blue px-5 py-3 text-[13px] font-semibold text-white transition-transform hover:scale-[1.02] disabled:opacity-60"
           >
-            {loading ? "Unlocking..." : "Continue for testing"}
+            Book a call to start your pilot
             <ArrowRight size={14} />
-          </button>
+          </a>
         </div>
       </section>
 
