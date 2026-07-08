@@ -24,6 +24,9 @@ async function readJson<T>(response: Response): Promise<T> {
     if (detail.includes("brand_passports.owner_user_id") || detail.includes("42703")) {
       throw new Error("Onboarding database migration is pending. Run migrations/003_onboarding_paywall.sql in Supabase, then refresh.");
     }
+    if (detail.includes("hex_colors") || detail.includes("PGRST204")) {
+      throw new Error("Brand Passport schema migration is pending. Run migrations/004_brand_passport_structured_columns.sql in Supabase, then refresh.");
+    }
     throw new Error(detail || `Request failed with ${response.status}`);
   }
   return payload as T;

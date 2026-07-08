@@ -164,6 +164,16 @@ def _is_missing_onboarding_migration(error: Exception) -> bool:
     return "brand_passports.owner_user_id" in message or "42703" in message
 
 
+def _missing_schema_column(error: Exception) -> str | None:
+    message = str(error)
+    if "PGRST204" not in message and "Could not find the" not in message:
+        return None
+    marker = "Could not find the '"
+    if marker not in message:
+        return None
+    return message.split(marker, 1)[1].split("'", 1)[0]
+
+
 def _raise_onboarding_migration_error() -> None:
     raise HTTPException(
         status_code=503,
@@ -260,11 +270,21 @@ def _save_onboarding_passport(owner_user_id: str, org_id: str, answers: dict[str
     existing = _get_onboarding_passport(owner_user_id)
     payload = _onboarding_payload(owner_user_id, org_id, answers)
 
-    if existing:
-        payload["paywall_status"] = existing.get("paywall_status") or "pending"
-        result = sb.table("brand_passports").update(payload).eq("id", existing["id"]).execute()
-    else:
-        result = sb.table("brand_passports").insert(payload).execute()
+    def write(next_payload: dict[str, Any]):
+        if existing:
+            next_payload["paywall_status"] = existing.get("paywall_status") or "pending"
+            return sb.table("brand_passports").update(next_payload).eq("id", existing["id"]).execute()
+        return sb.table("brand_passports").insert(next_payload).execute()
+
+    try:
+        result = write(payload)
+    except Exception as e:
+        missing_column = _missing_schema_column(e)
+        if missing_column == "hex_colors":
+            fallback_payload = {key: value for key, value in payload.items() if key != missing_column}
+            result = write(fallback_payload)
+        else:
+            raise
     return result.data[0]
 
 
