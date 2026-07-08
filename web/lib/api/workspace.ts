@@ -6,10 +6,12 @@ import type {
   SquadMessageData,
 } from "@/lib/data/workspace";
 import { workspaceTokens } from "@/lib/data/workspace";
+import { authHeaders, getSupabaseAccessToken } from "@/lib/api/session";
+import { getCurrentOrgId, FALLBACK_ORG_ID } from "@/lib/org";
 
 export const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID ??
-  "00000000-0000-0000-0000-000000000001";
+  FALLBACK_ORG_ID;
 
 export interface AgentMessageResponse {
   run_id: string;
@@ -123,12 +125,13 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = await authHeaders({
+    "Content-Type": "application/json",
+    ...(init?.headers ?? {}),
+  });
   const response = await fetch(backendPath(path), {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+    headers,
   });
   return readJson<T>(response);
 }
@@ -136,7 +139,7 @@ async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
 export async function sendAgentMessage(
   agentId: AgentId,
   text: string,
-  orgId = DEFAULT_ORG_ID,
+  orgId = getCurrentOrgId(),
 ) {
   return apiJson<AgentMessageResponse>(`/api/agent/${agentId}/message`, {
     method: "POST",
@@ -144,14 +147,14 @@ export async function sendAgentMessage(
   });
 }
 
-export async function sendSquadMessage(text: string, orgId = DEFAULT_ORG_ID) {
+export async function sendSquadMessage(text: string, orgId = getCurrentOrgId()) {
   return apiJson<SquadPostResponse>("/api/squad/message", {
     method: "POST",
     body: JSON.stringify({ org_id: orgId, text }),
   });
 }
 
-export async function fetchDashboardStats(orgId = DEFAULT_ORG_ID) {
+export async function fetchDashboardStats(orgId = getCurrentOrgId()) {
   const payload = await apiJson<{ stats: DashboardStat[] }>(
     `/api/dashboard/${orgId}/stats`,
   );
@@ -169,8 +172,10 @@ export async function resolveHitlDraft(
   });
 }
 
-export function createSquadEventSource(orgId = DEFAULT_ORG_ID) {
+export async function createSquadEventSource(orgId = getCurrentOrgId()) {
   const params = new URLSearchParams({ org_id: orgId });
+  const token = await getSupabaseAccessToken();
+  if (token) params.set("access_token", token);
   return new EventSource(backendPath(`/api/squad/stream?${params.toString()}`));
 }
 
@@ -197,7 +202,7 @@ export function mapSquadMessage(row: SquadMessageRow): SquadMessageData {
     hitlCard: row.hitl_draft_id
       ? {
           id: row.hitl_draft_id,
-          label: hitlStatus === "pending" ? "Review before publishing" : "Decision recorded",
+          label: hitlStatus === "pending" ? "Review before use" : "Decision recorded",
           content: row.content,
           status: hitlStatus,
         }

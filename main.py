@@ -1,65 +1,25 @@
-import os
-import uuid
 import json
 import asyncio
+import os
 from datetime import datetime, timezone
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from db import get_supabase
-from llm import stream_gemini
 from lib.context_assembler import VALID_AGENTS
-from lib.mentions import extract_mentions
 from lib.repository import SupabaseRepository
 from lib.switchboard import (
     handle_direct_agent_message,
     handle_squad_owner_message,
     resolve_hitl,
-    run_agent,
 )
 
 load_dotenv()
-
-# ---------------------------------------------------------------------------
-# Pydantic models
-# ---------------------------------------------------------------------------
-
-class ClientContext(BaseModel):
-    brand_name: str = "Unknown Brand"
-    industry: str = "General Business"
-    target_location: str = "Not specified"
-    hex_colors: list[str] = []
-    target_audience: str = "Not specified"
-    core_offer: str = "Not specified"
-
-
-class ChatRequest(BaseModel):
-    message: str
-    client_context: ClientContext = ClientContext()
-    user_role: str = "Owner"  # "Owner" | "Marketer"
-    conversation_history: list[dict] = []
-
-
-class OrchestrateRequest(BaseModel):
-    user_message: str
-    client_context: ClientContext = ClientContext()
-    conversation_history: list[dict] = []
-
-
-class PipelineRequest(BaseModel):
-    message: str
-    brand_id: str | None = None         # UUID of Brand Passport in Supabase
-    user_id: str | None = None          # UUID of user
-    user_role: str = "Owner"
-    conversation_id: str | None = None  # existing conversation to append to
-    conversation_history: list[dict] = []
-
 
 class AgentMessageRequest(BaseModel):
     org_id: str
@@ -75,70 +35,19 @@ class HitlEditRequest(BaseModel):
     final_content: str | None = None
 
 
-# ---------------------------------------------------------------------------
-# System prompt — kept static for prompt caching effectiveness
-# ---------------------------------------------------------------------------
+class OnboardingSaveRequest(BaseModel):
+    owner_user_id: str
+    org_id: str | None = None
+    answers: dict[str, Any]
 
-SYSTEM_PROMPT = """You are the Converza Co-Pilot — the strategic marketing intelligence layer of the Converza enterprise AI platform.
 
-Converza is a multi-agent marketing swarm built for serious businesses. Your role is not to act like a chatbot. You are a senior marketing strategist and AI systems coordinator embedded in the client's business. You think like a CMO, write like a world-class copywriter, and plan like an agency principal.
+class OnboardingOwnerRequest(BaseModel):
+    owner_user_id: str
+    org_id: str | None = None
 
-Your mission is to help the client's business grow through intelligent, brand-aligned marketing strategy, content, and execution guidance.
 
-## CORE BEHAVIOR
-
-- Never introduce yourself as an AI, chatbot, or assistant. You are the Converza Co-Pilot.
-- Speak with authority. You are the most experienced marketing strategist this client has ever worked with.
-- Be direct. No filler phrases like "Certainly!", "Of course!", or "Great question!". Just get to work.
-- Adapt tone to the client's brand and industry — inferred from their client context.
-- Ask clarifying questions only when truly necessary. Default to taking action and making recommendations.
-- When you have all the context you need, act. When you don't, ask one focused question — not a list of five.
-
-## ROLE-SPECIFIC ADAPTATION
-
-When user_role is "Owner":
-- Frame everything around business outcomes: revenue, customer acquisition, market position, ROI.
-- Speak in terms of strategy, competitive advantage, and growth systems.
-- Skip tactical minutiae unless asked. Owners want the "so what" and the "what next".
-- Use language like: pipeline, conversion rate, LTV, CAC, market share, growth lever.
-
-When user_role is "Marketer":
-- Go deep on execution: content calendars, platform-specific tactics, copywriting frameworks, A/B testing, metrics and KPIs.
-- Treat them as a skilled peer. Use industry-standard terminology freely.
-- Offer structured, actionable outputs they can take directly into their workflow.
-- Use language like: CTR, ROAS, hook rate, engagement rate, funnel stage, creative brief.
-
-## CLIENT CONTEXT
-
-You always have access to the client's business context injected at the start of the conversation:
-- brand_name: The name of the business
-- industry: Their market category
-- target_location: Geographic focus
-- hex_colors: Brand color palette (relevant for visual content guidance)
-- target_audience: Who they are marketing to
-- core_offer: Their primary product or service
-
-Use this context to make every response feel bespoke. Never give generic advice. Always tie recommendations back to their specific brand, audience, and offer.
-
-## THE CO-PILOT DYNAMIC
-
-You are not a subservient tool. You are a highly paid, collaborative partner. This means:
-1. When a client gives you information, accept it — but actively enrich it with your expertise.
-2. Before launching any campaign or finalizing any strategy, present your findings and explicitly ask: "Does this align with your vision, or should we adjust?"
-3. Push back when you see a better path. A good Co-Pilot doesn't just take orders.
-
-## SCOPE
-
-You can:
-- Develop full marketing strategies and campaign concepts
-- Write and refine copy, hooks, scripts, and messaging frameworks
-- Plan content calendars and content systems
-- Analyze competitive positioning and market gaps
-- Guide brand voice, tone, and visual identity direction
-- Advise on paid, organic, email, and social channel strategy
-- Identify weaknesses in the client's current marketing approach and prescribe fixes
-
-You are the Co-Pilot. Take the controls."""
+class AuthContext(BaseModel):
+    user_id: str
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +58,10 @@ app = FastAPI(title="Converza Co-Pilot", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tighten before production deployment
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -159,59 +71,58 @@ app.add_middleware(
 # Helpers
 # ---------------------------------------------------------------------------
 
-def build_context_block(ctx: ClientContext, role: str) -> str:
-    """
-    Builds the client context injection block prepended to the first user message.
-    Keeping this out of the system prompt preserves prompt cache hit rates.
-    """
-    hex_str = ", ".join(ctx.hex_colors) if ctx.hex_colors else "Not provided"
-    return (
-        f"[CLIENT CONTEXT]\n"
-        f"Brand Name: {ctx.brand_name}\n"
-        f"Industry: {ctx.industry}\n"
-        f"Target Location: {ctx.target_location}\n"
-        f"Brand Colors (hex): {hex_str}\n"
-        f"Target Audience: {ctx.target_audience}\n"
-        f"Core Offer: {ctx.core_offer}\n"
-        f"User Role: {role}\n"
-        f"[END CLIENT CONTEXT]\n\n"
-    )
-
-
 def get_switchboard_repo() -> SupabaseRepository:
     return SupabaseRepository(get_supabase())
 
 
-async def stream_response(
-    messages: list[dict],
-    conversation_id: str,
-) -> AsyncGenerator[str, None]:
-    """
-    Streams LLM response as SSE events via KIE.ai (Gemini 3 Flash).
+def get_default_org_id() -> str:
+    return os.getenv("DEFAULT_ORG_ID") or os.getenv("NEXT_PUBLIC_DEFAULT_ORG_ID") or "00000000-0000-0000-0000-000000000001"
 
-    Event formats:
-      data: {"token": "...", "conversation_id": "..."}
-      data: {"done": true, "conversation_id": "..."}
-      data: {"error": "..."}
-    """
+
+def get_backend_api_key() -> str:
+    key = os.getenv("BACKEND_API_KEY")
+    if not key:
+        raise RuntimeError("BACKEND_API_KEY must be set in .env")
+    return key
+
+
+async def require_api_key(authorization: str | None = Header(None)) -> None:
+    expected = f"Bearer {get_backend_api_key()}"
+    if not authorization or authorization != expected:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+def _normalize_bearer_token(token: str | None) -> str | None:
+    if not token:
+        return None
+    token = token.strip()
+    if token.lower().startswith("bearer "):
+        return token[7:].strip()
+    return token
+
+
+def _get_user_id_from_supabase_token(token: str) -> str:
+    result = get_supabase().auth.get_user(token)
+    user = getattr(result, "user", None)
+    user_id = getattr(user, "id", None)
+    if not user_id:
+        raise ValueError("Supabase session token did not resolve to a user")
+    return str(user_id)
+
+
+async def require_authenticated_user(
+    authorization: str | None = Header(None),
+    x_supabase_access_token: str | None = Header(None),
+    access_token: str | None = Query(None),
+) -> AuthContext:
+    await require_api_key(authorization)
+    token = _normalize_bearer_token(x_supabase_access_token) or _normalize_bearer_token(access_token)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing Supabase session")
     try:
-        async for token in stream_gemini(
-            messages=messages,
-            system_prompt=SYSTEM_PROMPT,
-        ):
-            payload = json.dumps({"token": token, "conversation_id": conversation_id})
-            yield f"data: {payload}\n\n"
-
-        yield f"data: {json.dumps({'done': True, 'conversation_id': conversation_id})}\n\n"
-
-    except Exception as e:
-        error_msg = str(e)
-        if "401" in error_msg or "auth" in error_msg.lower():
-            yield f"data: {json.dumps({'error': 'Invalid KIE API key. Check your KIE_API_KEY in .env.'})}\n\n"
-        elif "429" in error_msg or "rate" in error_msg.lower():
-            yield f"data: {json.dumps({'error': 'Rate limit reached. Please wait a moment and try again.'})}\n\n"
-        else:
-            yield f"data: {json.dumps({'error': f'LLM error: {error_msg}'})}\n\n"
+        return AuthContext(user_id=_get_user_id_from_supabase_token(token))
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Supabase session")
 
 
 # ---------------------------------------------------------------------------
@@ -223,66 +134,6 @@ async def health():
     return {"status": "ok", "service": "Converza Co-Pilot"}
 
 
-@app.post("/chat")
-async def chat(request: ChatRequest):
-    conversation_id = str(uuid.uuid4())
-    context_block = build_context_block(request.client_context, request.user_role)
-
-    history = list(request.conversation_history)
-
-    if history:
-        # Inject context into the first user message if not already present (idempotent)
-        first_content = history[0].get("content", "")
-        if "[CLIENT CONTEXT]" not in first_content:
-            history[0] = {**history[0], "content": context_block + first_content}
-        messages = history + [{"role": "user", "content": request.message}]
-    else:
-        # First turn — prepend context to the current message
-        messages = [{"role": "user", "content": context_block + request.message}]
-
-    return StreamingResponse(
-        stream_response(messages, conversation_id),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
-# Orchestrator Agent endpoint — ReAct loop
-# ---------------------------------------------------------------------------
-
-@app.post("/api/orchestrate")
-async def orchestrate(request: OrchestrateRequest):
-    ctx = request.client_context.model_dump()
-
-    try:
-        from agents.orchestrator import run_orchestrator
-
-        result = await run_orchestrator(
-            user_message=request.user_message,
-            client_context=ctx,
-            conversation_history=request.conversation_history,
-        )
-    except Exception as e:
-        error_name = e.__class__.__name__
-        if error_name == "AuthenticationError":
-            raise HTTPException(status_code=401, detail="Invalid ANTHROPIC_API_KEY.")
-        if error_name == "RateLimitError":
-            raise HTTPException(status_code=429, detail="Rate limit reached. Try again shortly.")
-        if error_name == "APIStatusError":
-            raise HTTPException(status_code=502, detail=f"Anthropic API error: {getattr(e, 'message', str(e))}")
-        raise
-
-    return result
-
-
-# ---------------------------------------------------------------------------
-# Pipeline — Dual-State Manager Agent (SSE)
-# ---------------------------------------------------------------------------
-
 def _fetch_brand_passport(brand_id: str) -> dict:
     """Fetch Brand Passport from Supabase by ID."""
     sb = get_supabase()
@@ -290,269 +141,236 @@ def _fetch_brand_passport(brand_id: str) -> dict:
     return result.data
 
 
-def _default_brand_passport(ctx: ClientContext) -> dict:
-    """Fallback Brand Passport from inline ClientContext (no Supabase)."""
-    return {
-        "brand_name": ctx.brand_name,
-        "industry": ctx.industry,
-        "target_location": ctx.target_location,
-        "hex_colors": ctx.hex_colors,
-        "target_audience": ctx.target_audience,
-        "core_offer": ctx.core_offer,
-        "brand_voice": "Not specified",
-        "competitors": [],
-        "avoid_topics": [],
-    }
-
-
-def _save_message(conversation_id: str, role: str, content: str, dag_run_id: str | None = None):
-    """Persist a message to Supabase conversation_messages."""
-    sb = get_supabase()
-    row = {
-        "conversation_id": conversation_id,
-        "role": role,
-        "content": content,
-    }
-    if dag_run_id:
-        row["dag_run_id"] = dag_run_id
-    sb.table("conversation_messages").insert(row).execute()
-
-
-def _create_dag_run(user_id: str | None, brand_id: str | None, user_message: str) -> str:
-    """Create a dag_runs row and return its ID."""
-    sb = get_supabase()
-    row: dict = {
-        "user_message": user_message,
-        "status": "pending",
-        "stage": "assessing",
-    }
-    if user_id:
-        row["user_id"] = user_id
-    if brand_id:
-        row["brand_id"] = brand_id
-    result = sb.table("dag_runs").insert(row).execute()
-    return result.data[0]["id"]
-
-
-def _update_dag_run(run_id: str, updates: dict):
-    """Update a dag_runs row."""
-    sb = get_supabase()
-    sb.table("dag_runs").update(updates).eq("id", run_id).execute()
-
-
-def _insert_dag_nodes(run_id: str, nodes: list[dict]):
-    """Bulk insert dag_node_runs for a compiled DAG plan."""
-    sb = get_supabase()
-    rows = [
-        {
-            "run_id": run_id,
-            "node_id": node["node_id"],
-            "agent_type": node["agent_type"],
-            "status": "pending",
-            "input_payload": node.get("brief", {}),
-        }
-        for node in nodes
-    ]
-    sb.table("dag_node_runs").insert(rows).execute()
-
-
-async def stream_pipeline(request: PipelineRequest) -> AsyncGenerator[str, None]:
-    """
-    Dual-state pipeline SSE stream.
-
-    Events:
-      data: {"type": "token",    "state": "clarifying"|"executing", "token": "..."}
-      data: {"type": "dag_plan", "state": "executing", "plan": {...}, "run_id": "..."}
-      data: {"type": "state_resolved", "state": "clarifying"|"executing", "run_id": "..."}
-      data: {"type": "done",     "conversation_id": "...", "run_id": "..."}
-      data: {"type": "error",    "error": "..."}
-    """
-    conv_id = request.conversation_id or str(uuid.uuid4())
-    run_id: str | None = None
-    dag_plan_data: dict | None = None
-
+def _number_or_none(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
     try:
-        from agents.manager import stream_manager
-        from agents.dag_runner import execute_dag
-
-        # ── Resolve Brand Passport ──
-        if request.brand_id:
-            try:
-                brand_passport = _fetch_brand_passport(request.brand_id)
-            except Exception:
-                brand_passport = _default_brand_passport(ClientContext())
-        else:
-            brand_passport = _default_brand_passport(ClientContext())
-
-        # ── Create DAG run record ──
-        try:
-            run_id = _create_dag_run(request.user_id, request.brand_id, request.message)
-        except Exception:
-            run_id = str(uuid.uuid4())  # Proceed without persistence if Supabase fails
-
-        # ── Save user message ──
-        try:
-            _save_message(conv_id, "user", request.message)
-        except Exception:
-            pass  # Non-blocking — don't kill the stream
-
-        # ── Run Manager Agent (dual-state) ──
-        assistant_content = ""
-
-        async for event in stream_manager(
-            user_message=request.message,
-            brand_passport=brand_passport,
-            user_role=request.user_role,
-            conversation_history=request.conversation_history,
-        ):
-            if event["type"] == "token":
-                assistant_content += event["token"]
-                payload = json.dumps({
-                    "type": "token",
-                    "state": event["state"],
-                    "token": event["token"],
-                    "conversation_id": conv_id,
-                    "run_id": run_id,
-                })
-                yield f"data: {payload}\n\n"
-
-            elif event["type"] == "dag_plan":
-                dag_plan_data = event["plan"]
-
-                # Log the DAG plan to Supabase
-                try:
-                    _update_dag_run(run_id, {
-                        "status": "running",
-                        "stage": "executing",
-                        "dag_plan": dag_plan_data,
-                    })
-                    _insert_dag_nodes(run_id, dag_plan_data["nodes"])
-                except Exception:
-                    pass
-
-                payload = json.dumps({
-                    "type": "dag_plan",
-                    "state": "executing",
-                    "plan": dag_plan_data,
-                    "conversation_id": conv_id,
-                    "run_id": run_id,
-                })
-                yield f"data: {payload}\n\n"
-
-            elif event["type"] == "state_resolved":
-                state = event["state"]
-
-                # Update DAG run status based on resolved state
-                try:
-                    if state == "clarifying":
-                        _update_dag_run(run_id, {
-                            "status": "cancelled",
-                            "stage": "clarification",
-                            "completed_at": datetime.now(timezone.utc).isoformat(),
-                        })
-                except Exception:
-                    pass
-
-                payload = json.dumps({
-                    "type": "state_resolved",
-                    "state": state,
-                    "conversation_id": conv_id,
-                    "run_id": run_id,
-                    "reason": event.get("reason"),
-                })
-                yield f"data: {payload}\n\n"
-
-                # ── Trigger DAG execution for executing state ──
-                if state == "executing" and dag_plan_data:
-                    yield f"data: {json.dumps({'type': 'dag_executing', 'conversation_id': conv_id, 'run_id': run_id})}\n\n"
-
-                    try:
-                        dag_result = await execute_dag(
-                            dag_plan=dag_plan_data,
-                            brand_passport=brand_passport,
-                            run_id=run_id,
-                        )
-
-                        yield f"data: {json.dumps({'type': 'dag_result', 'status': dag_result['status'], 'campaign_name': dag_result.get('campaign_name', ''), 'conversation_id': conv_id, 'run_id': run_id})}\n\n"
-
-                    except Exception as e:
-                        yield f"data: {json.dumps({'type': 'dag_error', 'error': str(e), 'conversation_id': conv_id, 'run_id': run_id})}\n\n"
-
-        # ── Save assistant response ──
-        try:
-            _save_message(conv_id, "assistant", assistant_content, dag_run_id=run_id)
-        except Exception:
-            pass
-
-        # ── Done ──
-        yield f"data: {json.dumps({'type': 'done', 'conversation_id': conv_id, 'run_id': run_id})}\n\n"
-
-    except Exception as e:
-        error_name = e.__class__.__name__
-        if error_name == "AuthenticationError":
-            yield f"data: {json.dumps({'type': 'error', 'error': 'Invalid API key. Check your ANTHROPIC_API_KEY.'})}\n\n"
-            return
-        if error_name == "RateLimitError":
-            yield f"data: {json.dumps({'type': 'error', 'error': 'Rate limit reached. Please wait and try again.'})}\n\n"
-            return
-        if error_name == "APIStatusError":
-            status_code = getattr(e, "status_code", "unknown")
-            message = getattr(e, "message", str(e))
-            yield f"data: {json.dumps({'type': 'error', 'error': f'API error ({status_code}): {message}'})}\n\n"
-            return
-        yield f"data: {json.dumps({'type': 'error', 'error': f'Pipeline error: {str(e)}'})}\n\n"
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
-@app.post("/api/pipeline")
-async def pipeline(request: PipelineRequest):
-    return StreamingResponse(
-        stream_pipeline(request),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
+def _int_or_none(value: Any) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_missing_onboarding_migration(error: Exception) -> bool:
+    message = str(error)
+    return "brand_passports.owner_user_id" in message or "42703" in message
+
+
+def _raise_onboarding_migration_error() -> None:
+    raise HTTPException(
+        status_code=503,
+        detail="Onboarding database migration is pending. Run migrations/003_onboarding_paywall.sql in Supabase, then refresh.",
     )
 
 
-@app.get("/api/pipeline/{run_id}")
-async def get_pipeline_run(run_id: str):
-    """Fetch a completed DAG run with all node results."""
-    try:
-        sb = get_supabase()
-        run = sb.table("dag_runs").select("*").eq("id", run_id).single().execute()
-        nodes = sb.table("dag_node_runs").select("*").eq("run_id", run_id).execute()
-        return {
-            "run": run.data,
-            "nodes": nodes.data,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Run not found: {str(e)}")
+def _get_passport_by_org(org_id: str) -> dict[str, Any] | None:
+    result = (
+        get_supabase()
+        .table("brand_passports")
+        .select("id,org_id,owner_user_id")
+        .eq("org_id", org_id)
+        .order("updated_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    return result.data[0] if result.data else None
 
 
-@app.post("/api/pipeline/status")
-async def pipeline_status(run_id: str):
-    """Poll DAG run status."""
+def _assert_user_owns_org(user_id: str, org_id: str) -> None:
     try:
-        sb = get_supabase()
-        run = sb.table("dag_runs").select("id, status, stage, started_at, completed_at").eq("id", run_id).single().execute()
-        nodes = sb.table("dag_node_runs").select("node_id, agent_type, status").eq("run_id", run_id).execute()
-        return {
-            "run": run.data,
-            "nodes": nodes.data,
-        }
+        passport = _get_passport_by_org(org_id)
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Run not found: {str(e)}")
+        if _is_missing_onboarding_migration(e):
+            _raise_onboarding_migration_error()
+        raise
+    if not passport:
+        raise HTTPException(status_code=403, detail="Org is not linked to this user")
+    if str(passport.get("owner_user_id")) != user_id:
+        raise HTTPException(status_code=403, detail="Org does not belong to this user")
+
+
+def _assert_onboarding_owner(auth: AuthContext, owner_user_id: str) -> None:
+    if owner_user_id != auth.user_id:
+        raise HTTPException(status_code=403, detail="Cannot access onboarding for another user")
+
+
+def _assert_org_not_owned_by_other(user_id: str, org_id: str) -> None:
+    try:
+        passport = _get_passport_by_org(org_id)
+    except Exception as e:
+        if _is_missing_onboarding_migration(e):
+            _raise_onboarding_migration_error()
+        raise
+    if passport and str(passport.get("owner_user_id")) != user_id:
+        raise HTTPException(status_code=403, detail="Org is already linked to another user")
+
+
+def _onboarding_payload(owner_user_id: str, org_id: str, answers: dict[str, Any]) -> dict[str, Any]:
+    tones = answers.get("brand_tone") or []
+    colors = answers.get("brand_colors") or []
+    channels = answers.get("channels_requested") or []
+    return {
+        "owner_user_id": owner_user_id,
+        "org_id": org_id,
+        "onboarding_answers": answers,
+        "brand_name": answers.get("business_name") or "Untitled brand",
+        "industry": answers.get("industry"),
+        "core_offer": answers.get("core_offer"),
+        "target_audience": answers.get("ideal_customer"),
+        "target_location": answers.get("customer_location"),
+        "tone": ", ".join(tones) if isinstance(tones, list) else tones,
+        "hex_colors": colors if isinstance(colors, list) else [],
+        "current_marketing_handler": answers.get("current_marketing_handler"),
+        "current_marketing_spend": _number_or_none(answers.get("current_marketing_spend")),
+        "current_reply_handler": answers.get("current_reply_handler"),
+        "weekly_message_volume": _int_or_none(answers.get("weekly_message_volume")),
+        "primary_pain_point": answers.get("primary_pain_point"),
+        "primary_goal": answers.get("primary_goal"),
+        "channels_requested": channels if isinstance(channels, list) else [],
+        "owner_name": answers.get("owner_name"),
+        "owner_contact": answers.get("owner_contact"),
+        "paywall_status": "pending",
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _get_onboarding_passport(owner_user_id: str) -> dict[str, Any] | None:
+    result = (
+        get_supabase()
+        .table("brand_passports")
+        .select("*")
+        .eq("owner_user_id", owner_user_id)
+        .order("updated_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    return result.data[0] if result.data else None
+
+
+def _save_onboarding_passport(owner_user_id: str, org_id: str, answers: dict[str, Any]) -> dict[str, Any]:
+    sb = get_supabase()
+    existing = _get_onboarding_passport(owner_user_id)
+    payload = _onboarding_payload(owner_user_id, org_id, answers)
+
+    if existing:
+        payload["paywall_status"] = existing.get("paywall_status") or "pending"
+        result = sb.table("brand_passports").update(payload).eq("id", existing["id"]).execute()
+    else:
+        result = sb.table("brand_passports").insert(payload).execute()
+    return result.data[0]
+
+
+def _update_onboarding_status(owner_user_id: str, updates: dict[str, Any]) -> dict[str, Any]:
+    existing = _get_onboarding_passport(owner_user_id)
+    if not existing:
+        raise KeyError(owner_user_id)
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = (
+        get_supabase()
+        .table("brand_passports")
+        .update(updates)
+        .eq("id", existing["id"])
+        .execute()
+    )
+    return result.data[0]
 
 
 # ---------------------------------------------------------------------------
 # Agent Switchboard + Squad Chat
 # ---------------------------------------------------------------------------
 
+@app.get("/api/onboarding/state/{owner_user_id}")
+async def onboarding_state(owner_user_id: str, auth: AuthContext = Depends(require_authenticated_user)):
+    _assert_onboarding_owner(auth, owner_user_id)
+    try:
+        return {"passport": _get_onboarding_passport(owner_user_id)}
+    except Exception as e:
+        if _is_missing_onboarding_migration(e):
+            _raise_onboarding_migration_error()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/onboarding/passport")
+async def save_onboarding_passport(
+    request: OnboardingSaveRequest,
+    auth: AuthContext = Depends(require_authenticated_user),
+):
+    _assert_onboarding_owner(auth, request.owner_user_id)
+    org_id = request.org_id or get_default_org_id()
+    _assert_org_not_owned_by_other(auth.user_id, org_id)
+    try:
+        passport = _save_onboarding_passport(
+            owner_user_id=request.owner_user_id,
+            org_id=org_id,
+            answers=request.answers,
+        )
+        return {"passport": passport}
+    except Exception as e:
+        if _is_missing_onboarding_migration(e):
+            _raise_onboarding_migration_error()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/onboarding/complete")
+async def complete_onboarding(
+    request: OnboardingOwnerRequest,
+    auth: AuthContext = Depends(require_authenticated_user),
+):
+    _assert_onboarding_owner(auth, request.owner_user_id)
+    if request.org_id:
+        _assert_user_owns_org(auth.user_id, request.org_id)
+    try:
+        passport = _update_onboarding_status(
+            request.owner_user_id,
+            {"onboarding_completed_at": datetime.now(timezone.utc).isoformat()},
+        )
+        return {"passport": passport}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Onboarding passport not found")
+    except Exception as e:
+        if _is_missing_onboarding_migration(e):
+            _raise_onboarding_migration_error()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/onboarding/stub-payment")
+async def complete_stub_payment(
+    request: OnboardingOwnerRequest,
+    auth: AuthContext = Depends(require_authenticated_user),
+):
+    _assert_onboarding_owner(auth, request.owner_user_id)
+    if request.org_id:
+        _assert_user_owns_org(auth.user_id, request.org_id)
+    try:
+        passport = _update_onboarding_status(
+            request.owner_user_id,
+            {"paywall_status": "stub_completed"},
+        )
+        return {"passport": passport}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Onboarding passport not found")
+    except Exception as e:
+        if _is_missing_onboarding_migration(e):
+            _raise_onboarding_migration_error()
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.post("/api/agent/{agent_slug}/message")
-async def agent_message(agent_slug: str, request: AgentMessageRequest):
+async def agent_message(
+    agent_slug: str,
+    request: AgentMessageRequest,
+    auth: AuthContext = Depends(require_authenticated_user),
+):
     if agent_slug not in VALID_AGENTS:
         raise HTTPException(status_code=404, detail="Unknown agent")
+    _assert_user_owns_org(auth.user_id, request.org_id)
 
     try:
         result = await handle_direct_agent_message(
@@ -567,64 +385,70 @@ async def agent_message(agent_slug: str, request: AgentMessageRequest):
 
 
 @app.post("/api/squad/message")
-async def squad_message(request: SquadMessageRequest, background_tasks: BackgroundTasks):
-    repo = get_switchboard_repo()
-    mentions = extract_mentions(request.text)
-    owner_message = await repo.insert_squad_message(
+async def squad_message(
+    request: SquadMessageRequest,
+    background_tasks: BackgroundTasks,
+    auth: AuthContext = Depends(require_authenticated_user),
+):
+    _assert_user_owns_org(auth.user_id, request.org_id)
+    return await handle_squad_owner_message(
         org_id=request.org_id,
-        sender_slug="owner",
-        content=request.text,
-        mentions=mentions,
+        text=request.text,
+        repo=get_switchboard_repo(),
+        background_tasks=background_tasks,
     )
 
-    targets = mentions or ["milo"]
-    for target in targets:
-        background_tasks.add_task(
-            run_agent,
-            org_id=request.org_id,
-            agent_slug=target,
-            text=request.text,
-            triggered_by="owner",
-            repo=repo,
+
+@app.get("/api/squad/stream")
+async def squad_stream(org_id: str, auth: AuthContext = Depends(require_authenticated_user)):
+    _assert_user_owns_org(auth.user_id, org_id)
+    def fetch_stream_rows(
+        table_name: str,
+        last_created_at: str | None,
+    ) -> list[dict]:
+        query = (
+            get_supabase()
+            .table(table_name)
+            .select("*")
+            .eq("org_id", org_id)
         )
+        if last_created_at:
+            result = (
+                query.gte("created_at", last_created_at)
+                .order("created_at", desc=False)
+                .limit(100)
+                .execute()
+            )
+            return result.data or []
 
-    return {"message": owner_message, "routed_to": targets}
+        result = (
+            query.order("created_at", desc=True)
+            .limit(100)
+            .execute()
+        )
+        return list(reversed(result.data or []))
 
-
-@getattr(app, "get")("/api/squad/stream")
-async def squad_stream(org_id: str):
     async def events() -> AsyncGenerator[str, None]:
         seen_messages: set[str] = set()
         seen_steps: set[str] = set()
+        last_message_created_at: str | None = None
+        last_step_created_at: str | None = None
         while True:
             try:
-                sb = get_supabase()
-                messages = (
-                    sb.table("squad_messages")
-                    .select("*")
-                    .eq("org_id", org_id)
-                    .order("created_at", desc=False)
-                    .limit(100)
-                    .execute()
-                )
-                for row in messages.data or []:
+                messages = fetch_stream_rows("squad_messages", last_message_created_at)
+                for row in messages:
                     if row["id"] in seen_messages:
                         continue
                     seen_messages.add(row["id"])
+                    last_message_created_at = row.get("created_at") or last_message_created_at
                     yield f"data: {json.dumps({'type': 'squad_message', 'row': row}, default=str)}\n\n"
 
-                steps = (
-                    sb.table("agent_run_steps")
-                    .select("*")
-                    .eq("org_id", org_id)
-                    .order("created_at", desc=False)
-                    .limit(100)
-                    .execute()
-                )
-                for row in steps.data or []:
+                steps = fetch_stream_rows("agent_run_steps", last_step_created_at)
+                for row in steps:
                     if row["id"] in seen_steps:
                         continue
                     seen_steps.add(row["id"])
+                    last_step_created_at = row.get("created_at") or last_step_created_at
                     yield f"data: {json.dumps({'type': 'agent_run_step', 'row': row}, default=str)}\n\n"
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
@@ -637,45 +461,68 @@ async def squad_stream(org_id: str):
     )
 
 
+def _get_draft_org_id(draft_id: str) -> str:
+    draft = get_supabase().table("drafts").select("org_id").eq("id", draft_id).limit(1).execute()
+    if not draft.data:
+        raise KeyError(draft_id)
+    return draft.data[0]["org_id"]
+
+
 @app.post("/api/hitl/{draft_id}/approve")
-async def hitl_approve(draft_id: str):
+async def hitl_approve(draft_id: str, auth: AuthContext = Depends(require_authenticated_user)):
     try:
+        _assert_user_owns_org(auth.user_id, _get_draft_org_id(draft_id))
         return await resolve_hitl(
             draft_id=draft_id,
             action="approve",
             repo=get_switchboard_repo(),
         )
+    except HTTPException:
+        raise
     except KeyError:
         raise HTTPException(status_code=404, detail="Draft not found")
 
 
 @app.post("/api/hitl/{draft_id}/reject")
-async def hitl_reject(draft_id: str):
+async def hitl_reject(draft_id: str, auth: AuthContext = Depends(require_authenticated_user)):
     try:
+        _assert_user_owns_org(auth.user_id, _get_draft_org_id(draft_id))
         return await resolve_hitl(
             draft_id=draft_id,
             action="reject",
             repo=get_switchboard_repo(),
         )
+    except HTTPException:
+        raise
     except KeyError:
         raise HTTPException(status_code=404, detail="Draft not found")
 
 
 @app.post("/api/hitl/{draft_id}/edit")
-async def hitl_edit(draft_id: str, request: HitlEditRequest):
+async def hitl_edit(
+    draft_id: str,
+    request: HitlEditRequest,
+    auth: AuthContext = Depends(require_authenticated_user),
+):
     try:
+        _assert_user_owns_org(auth.user_id, _get_draft_org_id(draft_id))
         return await resolve_hitl(
             draft_id=draft_id,
             action="edit",
             repo=get_switchboard_repo(),
             edited_content=request.final_content,
         )
+    except HTTPException:
+        raise
     except KeyError:
         raise HTTPException(status_code=404, detail="Draft not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/api/dashboard/{org_id}/stats")
-async def dashboard_stats(org_id: str):
+async def dashboard_stats(org_id: str, auth: AuthContext = Depends(require_authenticated_user)):
+    _assert_user_owns_org(auth.user_id, org_id)
     try:
         return {"stats": await get_switchboard_repo().get_dashboard_stats(org_id)}
     except Exception as e:
@@ -687,36 +534,50 @@ async def dashboard_stats(org_id: str):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/brand-passport/{brand_id}")
-async def get_brand_passport(brand_id: str):
+async def get_brand_passport(brand_id: str, auth: AuthContext = Depends(require_authenticated_user)):
     try:
-        return _fetch_brand_passport(brand_id)
+        passport = _fetch_brand_passport(brand_id)
+        _assert_user_owns_org(auth.user_id, passport["org_id"])
+        return passport
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
 @app.post("/api/brand-passport")
-async def create_brand_passport(passport: dict):
+async def create_brand_passport(passport: dict, auth: AuthContext = Depends(require_authenticated_user)):
     try:
+        passport["owner_user_id"] = auth.user_id
+        if passport.get("org_id"):
+            _assert_org_not_owned_by_other(auth.user_id, passport["org_id"])
         sb = get_supabase()
         result = sb.table("brand_passports").insert(passport).execute()
         return result.data[0]
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.put("/api/brand-passport/{brand_id}")
-async def update_brand_passport(brand_id: str, updates: dict):
+async def update_brand_passport(
+    brand_id: str,
+    updates: dict,
+    auth: AuthContext = Depends(require_authenticated_user),
+):
     try:
         sb = get_supabase()
+        passport = _fetch_brand_passport(brand_id)
+        _assert_user_owns_org(auth.user_id, passport["org_id"])
+        updates.pop("owner_user_id", None)
+        updates.pop("org_id", None)
         updates["updated_at"] = datetime.now(timezone.utc).isoformat()
         result = sb.table("brand_passports").update(updates).eq("id", brand_id).execute()
         return result.data[0]
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# ---------------------------------------------------------------------------
-# Static files — must be mounted LAST so API routes take priority
-# ---------------------------------------------------------------------------
-
-app.mount("/", StaticFiles(directory="static", html=True), name="static")

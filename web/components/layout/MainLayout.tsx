@@ -1,9 +1,12 @@
 "use client";
 
 import Sidebar from "@/components/sidebar/Sidebar";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { fetchOnboardingState } from "@/lib/api/onboarding";
+import { getDashboardGateDestination } from "@/lib/access";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -11,11 +14,87 @@ interface MainLayoutProps {
 
 export default function MainLayout({ children }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [gateState, setGateState] = useState<"checking" | "allowed" | "blocked">("checking");
+  const [gateError, setGateError] = useState("");
   const pathname = usePathname();
+  const router = useRouter();
 
-  // Marketing/landing routes render without the dashboard shell.
-  if (pathname?.startsWith("/landing")) {
+  const isPublicRoute = pathname?.startsWith("/landing") || pathname?.startsWith("/onboarding");
+
+  useEffect(() => {
+    if (isPublicRoute) {
+      setGateState("allowed");
+      return;
+    }
+
+    let cancelled = false;
+
+    async function checkAccess() {
+      setGateState("checking");
+      setGateError("");
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const sessionUser = supabase ? (await supabase.auth.getUser()).data.user : null;
+        const ownerUserId = sessionUser?.id || null;
+
+        if (sessionUser?.id) {
+          const { OWNER_USER_STORAGE_KEY } = await import("@/lib/onboarding");
+          window.localStorage.setItem(OWNER_USER_STORAGE_KEY, sessionUser.id);
+        }
+
+        const passport = ownerUserId ? await fetchOnboardingState(ownerUserId) : null;
+        const destination = getDashboardGateDestination(ownerUserId, passport);
+        if (destination !== "allow") {
+          router.replace(destination);
+          if (!cancelled) setGateState("blocked");
+          return;
+        }
+
+        if (!cancelled) setGateState("allowed");
+      } catch (error) {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : "Could not verify workspace access.";
+          if (message.includes("Onboarding database migration is pending")) {
+            router.replace("/landing");
+            setGateState("blocked");
+            return;
+          }
+          setGateError(message);
+          setGateState("blocked");
+        }
+      }
+    }
+
+    void checkAccess();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPublicRoute, pathname, router]);
+
+  // Marketing and onboarding routes render without the dashboard shell.
+  if (isPublicRoute) {
     return <>{children}</>;
+  }
+
+  if (gateState === "checking") {
+    return (
+      <div className="grid min-h-screen place-items-center bg-white font-workspace-sans text-[13px] text-text-muted">
+        Checking workspace access...
+      </div>
+    );
+  }
+
+  if (gateState === "blocked") {
+    return (
+      <div className="grid min-h-screen place-items-center bg-white px-4 font-workspace-sans text-text-secondary">
+        {gateError ? (
+          <div className="max-w-md rounded-2xl border border-border bg-bg-elevated p-5 text-[13px] leading-relaxed">
+            {gateError}
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   return (

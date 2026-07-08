@@ -37,42 +37,53 @@ export default function SquadChatPage() {
   const [streamError, setStreamError] = useState<string | null>(null);
 
   useEffect(() => {
-    const source = createSquadEventSource();
+    let source: EventSource | null = null;
+    let cancelled = false;
 
-    source.onmessage = (event) => {
-      const payload = parseSquadStreamEvent(event.data);
-      if (!payload) return;
-
-      if (payload.type === "error") {
-        setStreamError(payload.error);
+    void createSquadEventSource().then((nextSource) => {
+      if (cancelled) {
+        nextSource.close();
         return;
       }
+      source = nextSource;
+      source.onmessage = (event) => {
+        const payload = parseSquadStreamEvent(event.data);
+        if (!payload) return;
 
-      if (payload.type !== "squad_message") return;
+        if (payload.type === "error") {
+          setStreamError(payload.error);
+          return;
+        }
 
-      const message = mapSquadMessage(payload.row);
-      setMessages((current) => upsertMessage(current, message));
+        if (payload.type !== "squad_message") return;
 
-      if (isHitlDecisionMessage(message) && message.hitlCard) {
-        setHitlStatuses((current) => ({
-          ...current,
-          [message.hitlCard!.id]: message.hitlCard!.status,
-        }));
-      }
+        const message = mapSquadMessage(payload.row);
+        setMessages((current) => upsertMessage(current, message));
+
+        if (isHitlDecisionMessage(message) && message.hitlCard) {
+          setHitlStatuses((current) => ({
+            ...current,
+            [message.hitlCard!.id]: message.hitlCard!.status,
+          }));
+        }
+      };
+
+      source.onerror = () => {
+        setStreamError("Live squad stream disconnected. Retrying...");
+      };
+    });
+
+    return () => {
+      cancelled = true;
+      source?.close();
     };
-
-    source.onerror = () => {
-      setStreamError("Live squad stream disconnected. Retrying...");
-    };
-
-    return () => source.close();
   }, []);
 
-  async function handleHitlAction(cardId: string, status: DraftStatus) {
+  async function handleHitlAction(cardId: string, status: DraftStatus, finalContent?: string) {
     setHitlStatuses((current) => ({ ...current, [cardId]: status }));
 
     try {
-      const updated = await resolveHitlDraft(cardId, actionForStatus(status));
+      const updated = await resolveHitlDraft(cardId, actionForStatus(status), finalContent);
       setHitlStatuses((current) => ({ ...current, [cardId]: updated.status }));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Approval request failed";
@@ -118,7 +129,7 @@ export default function SquadChatPage() {
                 }
                 onHitlAction={
                   message.hitlCard
-                    ? (status) => handleHitlAction(message.hitlCard!.id, status)
+                    ? (status, finalContent) => handleHitlAction(message.hitlCard!.id, status, finalContent)
                     : undefined
                 }
               />

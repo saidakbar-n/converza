@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -12,6 +13,18 @@ from lib.narration import narrate_step
 from lib.repository import SwitchboardRepository
 
 DEFAULT_ROUTE = "milo"
+MAX_HANDOFF_HOPS = 5
+
+
+def summarize_hook_output(text: str) -> str | None:
+    hook_lines = [
+        line
+        for line in text.splitlines()
+        if re.match(r"^\s*(?:[-*]|\d+[\).:-])\s+", line)
+    ]
+    if not hook_lines:
+        return None
+    return f"{len(hook_lines)} drafted items"
 
 
 def build_system_prompt(context: dict[str, Any]) -> str:
@@ -41,13 +54,6 @@ def build_system_prompt(context: dict[str, Any]) -> str:
     )
 
 
-def route_owner_message(text: str) -> str:
-    mentions = extract_mentions(text)
-    if mentions:
-        return mentions[0]
-    return DEFAULT_ROUTE
-
-
 async def run_agent(
     *,
     org_id: str,
@@ -55,19 +61,34 @@ async def run_agent(
     text: str,
     triggered_by: str,
     repo: SwitchboardRepository,
+    handoff_count: int = 0,
 ) -> dict[str, Any]:
     run_id = await repo.create_agent_run(org_id, agent_slug, triggered_by, text)
-    await repo.insert_agent_memory(org_id, agent_slug, "user", text)
 
     try:
+        async with narrate_step(
+            repo=repo,
+            org_id=org_id,
+            agent_slug=agent_slug,
+            run_id=run_id,
+            step_label="Preparing agent context",
+        ):
+            await repo.insert_agent_memory(org_id, agent_slug, "user", text)
+            if agent_slug == "milo":
+                context = await assemble_context(org_id, "milo", repo=repo)
+            elif agent_slug == "vea":
+                context = await assemble_context(org_id, "vea", repo=repo)
+            elif agent_slug == "sleyz":
+                context = await assemble_context(org_id, "sleyz", repo=repo)
+            else:
+                raise ValueError(f"Unknown agent_slug: {agent_slug}")
+
         if agent_slug == "milo":
-            response = await _run_milo(org_id, run_id, text, repo)
+            response = await _run_milo(org_id, run_id, text, repo, context)
         elif agent_slug == "vea":
-            response = await _run_vea(org_id, run_id, text, repo)
-        elif agent_slug == "sleyz":
-            response = await _run_sleyz(org_id, run_id, text, repo)
+            response = await _run_vea(org_id, run_id, text, repo, context)
         else:
-            raise ValueError(f"Unknown agent_slug: {agent_slug}")
+            response = await _run_sleyz(org_id, run_id, text, repo, context)
 
         mentions: list[str] = []
         if response:
@@ -89,6 +110,19 @@ async def run_agent(
                 },
             )
 
+        if mentions and handoff_count >= MAX_HANDOFF_HOPS:
+            await repo.insert_squad_message(
+                org_id=org_id,
+                sender_slug="converza",
+                content=(
+                    f"Agent handoff chain halted after {MAX_HANDOFF_HOPS} hops for cost safety. "
+                    f"Last agent {agent_slug} mentioned: {', '.join('@' + agent for agent in mentions)}."
+                ),
+                mentions=[],
+                related_run_id=run_id,
+            )
+            return {"run_id": run_id, "agent_slug": agent_slug, "response": response}
+
         for mentioned_agent in mentions:
             await run_agent(
                 org_id=org_id,
@@ -96,6 +130,7 @@ async def run_agent(
                 text=response,
                 triggered_by="agent",
                 repo=repo,
+                handoff_count=handoff_count + 1,
             )
 
         return {"run_id": run_id, "agent_slug": agent_slug, "response": response}
@@ -115,28 +150,35 @@ async def handle_squad_owner_message(
     org_id: str,
     text: str,
     repo: SwitchboardRepository,
+    background_tasks: Any | None = None,
 ) -> dict[str, Any]:
     mentions = extract_mentions(text)
-    await repo.insert_squad_message(
+    owner_message = await repo.insert_squad_message(
         org_id=org_id,
         sender_slug="owner",
         content=text,
         mentions=mentions,
     )
 
-    targets = [route_owner_message(text)]
+    targets = mentions or [DEFAULT_ROUTE]
     results = []
     for agent_slug in targets:
-        results.append(
-            await run_agent(
-                org_id=org_id,
-                agent_slug=agent_slug,
-                text=text,
-                triggered_by="owner",
-                repo=repo,
+        kwargs = {
+            "org_id": org_id,
+            "agent_slug": agent_slug,
+            "text": text,
+            "triggered_by": "owner",
+            "repo": repo,
+        }
+        if background_tasks is not None:
+            background_tasks.add_task(run_agent, **kwargs)
+        else:
+            results.append(
+                await run_agent(
+                    **kwargs,
+                )
             )
-        )
-    return {"routed_to": targets, "runs": results}
+    return {"message": owner_message, "routed_to": targets, "runs": results}
 
 
 async def handle_direct_agent_message(
@@ -160,35 +202,59 @@ async def _run_milo(
     run_id: str,
     text: str,
     repo: SwitchboardRepository,
+    context: dict[str, Any],
 ) -> str:
-    context = await assemble_context(org_id, "milo", repo=repo)
     async with narrate_step(
         repo=repo,
         org_id=org_id,
         agent_slug="milo",
         run_id=run_id,
-        step_label="Researching market trends",
-        completed_detail="cold plunge content is trending +18%",
+        step_label="Reviewing brand and request",
     ):
         pass
 
-    async with narrate_step(
-        repo=repo,
+    await repo.insert_agent_run_step(
+        agent_run_id=run_id,
         org_id=org_id,
         agent_slug="milo",
-        run_id=run_id,
         step_label="Drafting hooks",
-        completed_detail="5 hooks ready",
-    ):
-        return await call_engine(
-            build_system_prompt(context),
-            (
-                "Create the marketing output requested by the owner. "
-                "If the request needs a video asset, include a concise @Vea handoff "
-                "with the best hook or script Vea should render.\n\n"
-                f"OWNER REQUEST:\n{text}"
-            ),
-        )
+        step_status="started",
+    )
+    await repo.insert_squad_message(
+        org_id=org_id,
+        sender_slug="milo",
+        content="Starting drafting hooks...",
+        related_run_id=run_id,
+    )
+    response = await call_engine(
+        build_system_prompt(context),
+        (
+            "Create the marketing output requested by the owner. "
+            "If the request needs a video asset, include a concise @Vea handoff "
+            "with the best hook or script Vea should render.\n\n"
+            f"OWNER REQUEST:\n{text}"
+        ),
+    )
+    completed_detail = summarize_hook_output(response)
+    await repo.insert_agent_run_step(
+        agent_run_id=run_id,
+        org_id=org_id,
+        agent_slug="milo",
+        step_label="Drafting hooks",
+        step_status="completed",
+        detail=completed_detail,
+    )
+    await repo.insert_squad_message(
+        org_id=org_id,
+        sender_slug="milo",
+        content=(
+            f"Finished drafting hooks - {completed_detail}"
+            if completed_detail
+            else "Finished drafting hooks."
+        ),
+        related_run_id=run_id,
+    )
+    return response
 
 
 async def _run_vea(
@@ -196,27 +262,34 @@ async def _run_vea(
     run_id: str,
     text: str,
     repo: SwitchboardRepository,
+    context: dict[str, Any],
 ) -> str:
-    context = await assemble_context(org_id, "vea", repo=repo)
-    script = await call_engine(
-        build_system_prompt(context),
-        (
-            "Write a concise 15-second vertical video script for the requested ad. "
-            "Return only the spoken script, no markdown, no scene labels.\n\n"
-            f"REQUEST:\n{text}"
-        ),
-    )
-    if not script.strip():
+    async with narrate_step(
+        repo=repo,
+        org_id=org_id,
+        agent_slug="vea",
+        run_id=run_id,
+        step_label="Drafting video script",
+    ):
         script = await call_engine(
             build_system_prompt(context),
             (
-                "Return exactly one short spoken ad script sentence. "
-                "Do not return analysis, labels, or markdown.\n\n"
+                "Write a concise 15-second vertical video script for the requested ad. "
+                "Return only the spoken script, no markdown, no scene labels.\n\n"
                 f"REQUEST:\n{text}"
             ),
         )
-    if not script.strip():
-        raise RuntimeError("Vea script generation returned empty content")
+        if not script.strip():
+            script = await call_engine(
+                build_system_prompt(context),
+                (
+                    "Return exactly one short spoken ad script sentence. "
+                    "Do not return analysis, labels, or markdown.\n\n"
+                    f"REQUEST:\n{text}"
+                ),
+            )
+        if not script.strip():
+            raise RuntimeError("Vea script generation returned empty content")
 
     async with narrate_step(
         repo=repo,
@@ -261,8 +334,8 @@ async def _run_sleyz(
     run_id: str,
     text: str,
     repo: SwitchboardRepository,
+    context: dict[str, Any],
 ) -> str:
-    context = await assemble_context(org_id, "sleyz", repo=repo)
     async with narrate_step(
         repo=repo,
         org_id=org_id,
@@ -301,7 +374,12 @@ async def resolve_hitl(
         "edit": "edited",
     }
     status = status_map[action]
-    final_content = edited_content if action == "edit" and edited_content else draft.get("draft_content")
+    if action == "edit":
+        final_content = (edited_content or "").strip()
+        if not final_content:
+            raise ValueError("final_content is required when editing a draft")
+    else:
+        final_content = draft.get("draft_content")
 
     updated = await repo.update_draft(
         draft_id,
@@ -311,11 +389,22 @@ async def resolve_hitl(
             "decided_at": datetime.now(timezone.utc).isoformat(),
         },
     )
+    run_id = await repo.get_run_id_for_draft(draft_id)
+    if run_id:
+        run_status = "failed" if action == "reject" else "completed"
+        await repo.update_agent_run(
+            run_id,
+            {
+                "status": run_status,
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
     await repo.insert_squad_message(
         org_id=draft["org_id"],
         sender_slug="converza",
         content=f"HITL {status}: {draft.get('agent_slug', 'agent')} draft {draft_id}",
         mentions=[],
+        related_run_id=run_id,
         hitl_draft_id=draft_id,
     )
     return updated

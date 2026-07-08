@@ -26,6 +26,8 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { OWNER_USER_STORAGE_KEY } from "@/lib/onboarding";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const navItems = [
   { href: "#problem", label: "Problem" },
@@ -912,14 +914,14 @@ export default function ConverzaLandingPage() {
         onLanguageChange={setActiveLanguage}
         onOpenAuthModal={() => setAuthModalOpen(true)}
       />
-      <HeroSection copy={copy} onOpenPilotForm={() => setPilotRequestOpen(true)} />
+      <HeroSection copy={copy} onOpenPilotForm={() => setAuthModalOpen(true)} />
       <ProblemSection copy={copy} />
       <SolutionSection copy={copy} />
       <IntegrationsSection copy={copy} />
       <AdvantageSection copy={copy} />
       <DemoSection copy={copy} />
       <FaqSection copy={copy} />
-      <PricingSection copy={copy} onOpenPilotForm={() => setPilotRequestOpen(true)} />
+      <PricingSection copy={copy} onOpenPilotForm={() => setAuthModalOpen(true)} />
       <FoundersSection copy={copy} />
       <BlogSection copy={copy} />
       <Footer copy={copy} />
@@ -1745,15 +1747,17 @@ function AuthModal({
     letter: /[A-Za-z]/.test(values.password),
     number: /\d/.test(values.password),
   };
+  const emailValid = values.email.includes("@") && values.email.includes(".");
   const passwordValid =
     passwordChecks.length && passwordChecks.letter && passwordChecks.number;
   const showPasswordHints = values.password.length > 0;
   const isFormStep = step === "signIn" || step === "signUp";
   const formValid =
-    values.phone.trim().length > 0 &&
+    values.email.trim().length > 0 &&
+    emailValid &&
     values.password.length > 0 &&
     passwordValid &&
-    (step === "signIn" || values.email.trim().length > 0);
+    (step === "signIn" || values.phone.trim().length > 0);
 
   useEffect(() => {
     if (!open) return;
@@ -1765,15 +1769,69 @@ function AuthModal({
     setAuthLoading(false);
   }, [open]);
 
-  function continueToDashboard() {
+  function continueWithSocial() {
+    setSubmittedMessage("Google and Telegram login come later. Use email and password for Phase A.");
+  }
+
+  async function submitAuth() {
+    if (!formValid) return;
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setSubmittedMessage("Supabase is not configured in the browser environment yet.");
+      return;
+    }
+
     setAuthLoading(true);
     setSubmittedMessage("");
 
-    window.setTimeout(() => {
+    try {
+      const credentials = {
+        email: values.email.trim(),
+        password: values.password,
+      };
+      const response =
+        step === "signUp"
+          ? await supabase.auth.signUp({
+              ...credentials,
+              options: {
+                data: {
+                  phone: values.phone.trim(),
+                },
+              },
+            })
+          : await supabase.auth.signInWithPassword(credentials);
+
+      if (response.error) {
+        setSubmittedMessage(response.error.message);
+        return;
+      }
+
+      const session =
+        response.data.session || (await supabase.auth.getSession()).data.session;
+      if (!session?.access_token) {
+        setSubmittedMessage(
+          step === "signUp"
+            ? "Account created. Confirm your email if Supabase asks for it, then sign in to continue."
+            : "Signed in, but Supabase did not return a usable session. Try again.",
+        );
+        return;
+      }
+
+      const userId = response.data.user?.id || session.user?.id || (await supabase.auth.getUser()).data.user?.id;
+      if (!userId) {
+        setSubmittedMessage("Account created, but Supabase did not return a user id.");
+        return;
+      }
+
+      window.localStorage.setItem(OWNER_USER_STORAGE_KEY, userId);
       onClose();
-      router.push("/");
+      router.push("/onboarding");
+    } catch (error) {
+      setSubmittedMessage(error instanceof Error ? error.message : "Authentication failed.");
+    } finally {
       setAuthLoading(false);
-    }, 350);
+    }
   }
 
   if (!open) return null;
@@ -1857,7 +1915,7 @@ function AuthModal({
               <button
                 type="button"
                 aria-label="Continue with Google"
-                onClick={continueToDashboard}
+                onClick={continueWithSocial}
                 className="flex flex-1 items-center justify-center rounded-xl border border-stone-200 bg-stone-50 py-3 transition-colors hover:bg-stone-100"
               >
                 <svg className="h-6 w-6" viewBox="0 0 24 24" aria-hidden="true">
@@ -1882,7 +1940,7 @@ function AuthModal({
               <button
                 type="button"
                 aria-label="Continue with Telegram"
-                onClick={continueToDashboard}
+                onClick={continueWithSocial}
                 className="flex flex-1 items-center justify-center rounded-xl border border-stone-200 bg-stone-50 py-3 transition-colors hover:bg-stone-100"
               >
                 <svg
@@ -1897,6 +1955,11 @@ function AuthModal({
                 </svg>
               </button>
             </div>
+            {submittedMessage ? (
+              <p className="mt-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-[13px] font-medium text-[#1C1B19]">
+                {submittedMessage}
+              </p>
+            ) : null}
           </div>
         ) : (
           <form
@@ -1910,7 +1973,7 @@ function AuthModal({
                 return;
               }
 
-              void continueToDashboard();
+              void submitAuth();
             }}
           >
             <button
@@ -1926,14 +1989,16 @@ function AuthModal({
             </button>
 
             <AuthModalInput
-              label="Phone Number"
-              name="phone"
-              type="tel"
-              inputMode="tel"
-              placeholder="+998901234567"
-              value={values.phone}
+              label={step === "signUp" ? "Phone Number" : "Email Address"}
+              name={step === "signUp" ? "phone" : "email"}
+              type={step === "signUp" ? "tel" : "email"}
+              inputMode={step === "signUp" ? "tel" : "email"}
+              placeholder={step === "signUp" ? "+998901234567" : "founder@company.com"}
+              value={step === "signUp" ? values.phone : values.email}
               onChange={(value) => {
-                setValues((current) => ({ ...current, phone: value }));
+                setValues((current) =>
+                  step === "signUp" ? { ...current, phone: value } : { ...current, email: value },
+                );
                 setSubmittedMessage("");
               }}
               autoFocus
@@ -2004,11 +2069,13 @@ function AuthModal({
 
             <button
               type="submit"
-              disabled={authLoading}
+              disabled={authLoading || !formValid}
               className="w-full rounded-xl bg-[#1b5bf7] px-5 py-3 text-[15px] font-semibold text-white transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-65"
             >
               {authLoading
-                ? "Opening dashboard..."
+                ? step === "signUp"
+                  ? "Creating account..."
+                  : "Signing in..."
                 : step === "signUp"
                   ? "Create Account"
                   : "Sign In"}

@@ -46,8 +46,8 @@ out/
 next-env.d.ts
 .gstack/
 
-# OpenClaw engine (cloned, not tracked)
-backend/
+# OpenClaw engine (cloned at repo root, not tracked)
+/backend/
 
 # MoneyPrinterTurbo worker clone (run separately, not vendored)
 services/MoneyPrinterTurbo/

@@ -73,7 +73,7 @@ export interface CompetitorData {
 }
 
 export interface WorkspaceNavItem {
-  id: "dashboard" | "agents" | "squad" | "competitors" | "office" | "settings";
+  id: "dashboard" | "agents" | "squad" | "competitors" | "channels" | "office" | "settings";
   label: string;
   href: string;
   badge?: string;
@@ -320,7 +320,7 @@ const squadMessages: SquadMessageData[] = [
     text: "Video is ready. @Converza flagging for owner approval before it goes anywhere.",
     hitlCard: {
       id: "draft-1",
-      label: "Review before publishing",
+      label: "Review before use",
       content:
         "\"Your skin does not need more products. It needs one that actually works below the surface.\" — 15s, cold plunge serum, ready for Instagram + TikTok",
       status: "pending",
@@ -368,6 +368,7 @@ const workspaceNavItems: WorkspaceNavItem[] = [
   { id: "agents", label: "Agents", href: "/agents", placement: "main" },
   { id: "squad", label: "Squad chat", href: "/squad", placement: "main" },
   { id: "competitors", label: "Competitors", href: "/competitors", placement: "main" },
+  { id: "channels", label: "Connect channels", href: "/connect-channels", placement: "main" },
   { id: "office", label: "Virtual office", href: "/office", badge: "Soon", placement: "main" },
   { id: "settings", label: "Settings", href: "/settings", placement: "footer" },
 ];
