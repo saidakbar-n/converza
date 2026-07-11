@@ -346,7 +346,7 @@ const translations = {
           initials: "N",
         },
         {
-          name: "Saidakbar Nosirov",
+          name: "Saidakbar Nasyrov",
           role: "CTO & Co-founder",
           bio: "Specialist in complex data routing and backend infrastructure.",
           initials: "SN",
@@ -577,7 +577,7 @@ const translations = {
           initials: "N",
         },
         {
-          name: "Saidakbar Nosirov",
+          name: "Saidakbar Nasyrov",
           role: "CTO & Co-founder",
           bio: "Специалист по сложной маршрутизации данных и backend-инфраструктуре.",
           initials: "SN",
@@ -808,7 +808,7 @@ const translations = {
           initials: "N",
         },
         {
-          name: "Saidakbar Nosirov",
+          name: "Saidakbar Nasyrov",
           role: "CTO & Co-founder",
           bio: "Murakkab data routing va backend infratuzilmasi bo'yicha mutaxassis.",
           initials: "SN",
