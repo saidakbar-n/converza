@@ -12,13 +12,15 @@ import {
   saveLocalAnswers,
   type OnboardingAnswers,
 } from "@/lib/onboarding";
-import { fetchOnboardingState } from "@/lib/api/onboarding";
+import { completeStubPayment, fetchOnboardingState } from "@/lib/api/onboarding";
 
 export default function PaywallPage() {
   const router = useRouter();
   const [answers, setAnswers] = useState<OnboardingAnswers>({});
+  const [ownerUserId, setOwnerUserId] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("pilot");
   const [showRegret, setShowRegret] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const analysis = useMemo(() => buildAnalysis(answers), [answers]);
 
@@ -31,6 +33,7 @@ export default function PaywallPage() {
         router.replace("/landing");
         return;
       }
+      setOwnerUserId(userId);
       const passport = await fetchOnboardingState(userId).catch(() => null);
       const nextAnswers = passport?.onboarding_answers || loadLocalAnswers();
       saveLocalAnswers(nextAnswers);
@@ -56,6 +59,17 @@ export default function PaywallPage() {
       window.removeEventListener("beforeunload", onBeforeUnload);
     };
   }, []);
+
+  const handleCheckoutMock = async (provider: string) => {
+    console.log(`[Checkout Intent] User selected: ${provider}`);
+    setShowPaymentModal(false);
+    if (ownerUserId) {
+      await completeStubPayment(ownerUserId).catch((error) => {
+        console.warn("[Checkout Intent] Could not mark stub payment complete", error);
+      });
+    }
+    router.push("/dashboard");
+  };
 
   return (
     <main
@@ -112,13 +126,14 @@ export default function PaywallPage() {
               No card form here. We confirm fit on a call, send a Wise or Payme invoice, then mark the workspace as paid after it clears.
             </p>
           </div>
-          <a
-            href="mailto:nodir@converza.ai?subject=Book%20Converza%20pilot"
+          <button
+            type="button"
+            onClick={() => setShowPaymentModal(true)}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-converza-blue px-5 py-3 text-[13px] font-semibold text-white transition-transform hover:scale-[1.02] disabled:opacity-60"
           >
             Book a call to start your pilot
             <ArrowRight size={14} />
-          </a>
+          </button>
         </div>
       </section>
 
@@ -145,6 +160,66 @@ export default function PaywallPage() {
               className="mt-6 w-full rounded-full bg-converza-blue px-5 py-3 text-[13px] font-semibold text-white"
             >
               Stay on this step
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showPaymentModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md border border-zinc-800 bg-[#111111] p-6 text-white">
+            <div>
+              <p className="font-workspace-mono text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                Demo mode
+              </p>
+              <h2 className="mt-3 text-[28px] font-semibold tracking-[-0.04em]">
+                Select Payment Gateway
+              </h2>
+              <p className="mt-2 text-[14px] leading-relaxed text-zinc-400">
+                This is a painted-door test. No card is required, and no payment will be charged.
+              </p>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              <button
+                type="button"
+                onClick={() => handleCheckoutMock("Paddle")}
+                className="group w-full border border-zinc-800 bg-zinc-950 p-4 text-left transition-colors hover:border-[#1b5bf7] hover:bg-[#1b5bf7]/10"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-[16px] font-semibold text-white">Paddle</div>
+                    <div className="mt-1 text-[13px] text-zinc-500">
+                      International / USD / Credit Card
+                    </div>
+                  </div>
+                  <ArrowRight size={16} className="text-zinc-600 transition-colors group-hover:text-[#1b5bf7]" />
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCheckoutMock("Local")}
+                className="group w-full border border-zinc-800 bg-zinc-950 p-4 text-left transition-colors hover:border-emerald-500 hover:bg-emerald-500/10"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-[16px] font-semibold text-white">Click / Payme</div>
+                    <div className="mt-1 text-[13px] text-zinc-500">
+                      Uzbekistan Local / UZS / Uzcard
+                    </div>
+                  </div>
+                  <ArrowRight size={16} className="text-zinc-600 transition-colors group-hover:text-emerald-400" />
+                </div>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowPaymentModal(false)}
+              className="mt-5 w-full border border-zinc-800 px-4 py-3 text-[13px] font-medium text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-white"
+            >
+              Cancel
             </button>
           </div>
         </div>
