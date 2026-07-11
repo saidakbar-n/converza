@@ -56,6 +56,10 @@ export default function RevealPage() {
           <div className="mt-8 rounded-2xl border border-border bg-bg-secondary p-5 text-[15px] leading-relaxed text-text-secondary">
             {analysis.goalNote}
           </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <AnalysisCard label="Before" value={analysis.before} />
+            <AnalysisCard label="After" value={analysis.after} />
+          </div>
           <div className="mt-8 grid gap-3 sm:grid-cols-3">
             <Summary label="Business" value={answers.business_name || "Your brand"} />
             <Summary label="Priority" value={answers.primary_goal || "Not set"} />
@@ -66,12 +70,21 @@ export default function RevealPage() {
             onClick={() => router.push("/onboarding/paywall")}
             className="mt-10 inline-flex items-center gap-2 rounded-full bg-converza-blue px-6 py-3 text-[14px] font-semibold text-white transition-transform hover:scale-[1.02]"
           >
-            Continue to plans
+            {analysis.cta}
             <ArrowRight size={15} />
           </button>
         </div>
       </section>
     </main>
+  );
+}
+
+function AnalysisCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-bg-elevated p-5">
+      <div className="font-workspace-mono text-[10px] uppercase tracking-[0.16em] text-text-muted">{label}</div>
+      <div className="mt-3 text-[14px] leading-relaxed text-text-secondary">{value}</div>
+    </div>
   );
 }
 

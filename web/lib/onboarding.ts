@@ -24,10 +24,13 @@ export interface OnboardingAnswers {
 }
 
 export interface OnboardingAnalysis {
-  branch: "savings" | "volume";
+  branch: "ghost-town" | "founder-trap" | "bleeding-cash" | "fallback";
   headline: string;
   detail: string;
   goalNote: string;
+  before: string;
+  after: string;
+  cta: string;
   monthlySavings?: number;
   spend?: number;
   converzaPrice: number;
@@ -45,14 +48,49 @@ export function buildAnalysis(answers: OnboardingAnswers): OnboardingAnalysis {
   const spend = Number(answers.current_marketing_spend || 0);
   const volume = Number(answers.weekly_message_volume || 0);
   const converzaPrice = PLAN_PRICES.pilot;
+  const pain = answers.primary_pain_point?.trim() || "the bottleneck you described";
+
+  if (volume === 0) {
+    return {
+      branch: "ghost-town",
+      headline:
+        "You're not getting inbound messages right now, and nothing is currently being spent on generating them. The real problem isn't slow replies — it's that nothing is creating demand yet.",
+      detail: `You told us: "${pain}". That's a content and visibility problem, not a response-time problem.`,
+      goalNote: personalizeForGoal(answers),
+      before: "No content going out, no leads coming in.",
+      after:
+        "Milo drafts real marketing content and hooks for your review. Vea turns your best ideas into real video ads. You approve what goes out — nothing publishes without your click.",
+      cta: "See plans built for getting your first leads",
+      converzaPrice,
+    };
+  }
+
+  if (volume > 10 && answers.current_reply_handler === "me") {
+    return {
+      branch: "founder-trap",
+      headline: `You're personally handling about ${formatNumber(volume)} messages a week.`,
+      detail:
+        "Harvard Business Review and MIT research (Oldroyd, 2007/2011) found leads contacted within 5 minutes are 21x more likely to qualify than those contacted after 30 minutes. Every message sitting in your inbox is a small chance slipping away.",
+      goalNote: personalizeForGoal(answers),
+      before: "Juggling every reply yourself, on your own time.",
+      after:
+        "Sleyz drafts a reply the moment a message comes in. You review and approve it before it sends — replies go out fast, without you writing every one by hand.",
+      cta: "See plans built for faster replies",
+      converzaPrice,
+    };
+  }
 
   if ((handler === "agency-freelancer" || handler === "in-house") && spend > 0) {
     const monthlySavings = spend - converzaPrice;
     return {
-      branch: "savings",
-      headline: `You're spending $${formatNumber(spend)}/mo today. Converza is $${formatNumber(converzaPrice)}/mo.`,
-      detail: `That's $${formatNumber(monthlySavings)}/mo back, without losing the work.`,
+      branch: "bleeding-cash",
+      headline: `You're currently spending $${formatNumber(spend)}/month on ${formatMarketingHandler(handler)}.`,
+      detail: `$${formatNumber(spend)}/month today vs. $${formatNumber(converzaPrice)}/month with Converza — that's $${formatNumber(monthlySavings)}/month back, without losing the work.`,
       goalNote: personalizeForGoal(answers),
+      before: `Paying $${formatNumber(spend)}/month and waiting on deliverables.`,
+      after:
+        "Milo, Sleyz, and Vea produce your hooks, replies, and videos directly. You review and approve — nothing waits on a retainer schedule.",
+      cta: "See plans that cost less than what you're paying now",
       monthlySavings,
       spend,
       converzaPrice,
@@ -60,10 +98,14 @@ export function buildAnalysis(answers: OnboardingAnswers): OnboardingAnalysis {
   }
 
   return {
-    branch: "volume",
-    headline: `You get about ${formatNumber(volume)} messages a week with no dedicated help handling them.`,
-    detail: "Every one of those is a lead someone else is following up on faster.",
+    branch: "fallback",
+    headline: `You told us the frustration is "${pain}".`,
+    detail: `Your first priority is ${answers.primary_goal || "growth"}. No outside statistic is needed here — this is your own bottleneck, in your own words.`,
     goalNote: personalizeForGoal(answers),
+    before: "Work depends on manual follow-up, scattered ideas, and whoever has time that day.",
+    after:
+      "Milo drafts real marketing hooks, Sleyz drafts real DM replies, and Vea renders real video. You review and approve the work before anything ships.",
+    cta: "See plans",
     converzaPrice,
   };
 }
@@ -75,8 +117,8 @@ export function personalizeForGoal(answers: OnboardingAnswers) {
 }
 
 export function regretCopy(analysis: OnboardingAnalysis, answers: OnboardingAnswers) {
-  if (analysis.branch === "savings" && typeof analysis.monthlySavings === "number") {
-    return `You're about to leave the $${formatNumber(analysis.monthlySavings)}/mo gap we just calculated.`;
+  if (analysis.branch === "bleeding-cash" && typeof analysis.monthlySavings === "number") {
+    return `You're about to leave the $${formatNumber(analysis.monthlySavings)}/month gap we just calculated.`;
   }
   const pain = answers.primary_pain_point?.trim() || "the lead handling problem you described";
   return `You're about to leave this unfinished while "${pain}" is still costing attention.`;
@@ -84,6 +126,13 @@ export function regretCopy(analysis: OnboardingAnalysis, answers: OnboardingAnsw
 
 export function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatMarketingHandler(handler: MarketingHandler) {
+  if (handler === "agency-freelancer") return "an agency or freelancer";
+  if (handler === "in-house") return "an in-house team";
+  if (handler === "me") return "your own time";
+  return "marketing";
 }
 
 export function loadLocalAnswers(): OnboardingAnswers {
