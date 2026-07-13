@@ -4,6 +4,14 @@ import { buildAnalysis } from "../lib/onboarding.ts";
 import { getDashboardGateDestination, isPublicAppRoute } from "../lib/access.ts";
 import { privacyPolicy } from "../lib/legal/privacy.ts";
 import { getFooterLinkHref, publicDocuments } from "../lib/legal/documents.ts";
+import { BACKEND_UNAVAILABLE_DETAIL } from "../lib/api/errors.ts";
+
+test("offline backend errors explain how to restore onboarding", () => {
+  assert.equal(
+    BACKEND_UNAVAILABLE_DETAIL,
+    "Backend service is offline. Start FastAPI on port 8000, then try again.",
+  );
+});
 
 test("privacy policy is public and contains the complete dated policy", () => {
   assert.equal(isPublicAppRoute("/privacy"), true);

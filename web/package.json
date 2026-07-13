@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "eval:legal": "node --test evals/legal-content.eval.mjs"
+    "eval:legal": "node --test evals/legal-content.eval.mjs",
+    "eval:onboarding-backend": "node --test evals/onboarding-backend.eval.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
