@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { fetchOnboardingState } from "@/lib/api/onboarding";
-import { getDashboardGateDestination } from "@/lib/access";
+import { getDashboardGateDestination, isPublicAppRoute } from "@/lib/access";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 interface MainLayoutProps {
@@ -19,7 +19,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isPublicRoute = pathname?.startsWith("/landing") || pathname?.startsWith("/onboarding");
+  const isPublicRoute = isPublicAppRoute(pathname);
 
   useEffect(() => {
     if (isPublicRoute) {

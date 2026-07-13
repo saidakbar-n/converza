@@ -1,7 +1,32 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildAnalysis } from "../lib/onboarding.ts";
-import { getDashboardGateDestination } from "../lib/access.ts";
+import { getDashboardGateDestination, isPublicAppRoute } from "../lib/access.ts";
+import { privacyPolicy } from "../lib/legal/privacy.ts";
+
+test("privacy policy is public and contains the complete dated policy", () => {
+  assert.equal(isPublicAppRoute("/privacy"), true);
+  assert.equal(privacyPolicy.lastUpdated, "13.07.2026");
+  assert.equal(privacyPolicy.sections.length, 10);
+  assert.deepEqual(
+    privacyPolicy.sections.map((section) => section.title),
+    [
+      "Information We Collect",
+      "How We Use Information",
+      "Third-Party Processors",
+      "Data Retention",
+      "Security",
+      "International Data Transfers",
+      "Your Rights",
+      "Cookies",
+      "Changes to This Policy",
+      "Contact",
+    ],
+  );
+  assert.match(privacyPolicy.sections[0].content.join(" "), /Brand Passport/);
+  assert.match(privacyPolicy.sections[1].content.join(" "), /Milo, Sleyz, Vea/);
+  assert.match(privacyPolicy.disclaimer, /has not been reviewed by a lawyer/i);
+});
 
 test("branch A ghost town handles zero volume without lead-loss copy", () => {
   const analysis = buildAnalysis({

@@ -5,6 +5,14 @@ interface GatePassport {
   paywall_status?: "pending" | "stub_completed" | "paid";
 }
 
+export function isPublicAppRoute(pathname: string | null) {
+  return Boolean(
+    pathname?.startsWith("/landing") ||
+      pathname?.startsWith("/onboarding") ||
+      pathname === "/privacy",
+  );
+}
+
 export function getDashboardGateDestination(ownerUserId: string | null, passport: GatePassport | null) {
   if (!ownerUserId) return "/landing";
   if (!passport?.onboarding_completed_at) return "/onboarding";

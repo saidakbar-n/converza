@@ -1712,7 +1712,11 @@ function Footer({ copy }: { copy: LandingCopy }) {
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-3 text-[13px] font-medium text-stone-500">
           {copy.footer.links.map((link) => (
-            <a key={link} href="#" className="hover:text-[#1C1B19]">
+            <a
+              key={link}
+              href={link === "Privacy Policy" ? "/privacy" : "#"}
+              className="hover:text-[#1C1B19]"
+            >
               {link}
             </a>
           ))}
