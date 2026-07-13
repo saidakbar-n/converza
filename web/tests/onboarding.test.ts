@@ -3,29 +3,56 @@ import assert from "node:assert/strict";
 import { buildAnalysis } from "../lib/onboarding.ts";
 import { getDashboardGateDestination, isPublicAppRoute } from "../lib/access.ts";
 import { privacyPolicy } from "../lib/legal/privacy.ts";
+import { getFooterLinkHref, publicDocuments } from "../lib/legal/documents.ts";
 
 test("privacy policy is public and contains the complete dated policy", () => {
   assert.equal(isPublicAppRoute("/privacy"), true);
   assert.equal(privacyPolicy.lastUpdated, "13.07.2026");
-  assert.equal(privacyPolicy.sections.length, 10);
+  assert.equal(privacyPolicy.sections.length, 8);
   assert.deepEqual(
     privacyPolicy.sections.map((section) => section.title),
     [
       "Information We Collect",
       "How We Use Information",
-      "Third-Party Processors",
+      "Third-Party Services",
       "Data Retention",
-      "Security",
-      "International Data Transfers",
       "Your Rights",
-      "Cookies",
+      "International Data",
       "Changes to This Policy",
       "Contact",
     ],
   );
-  assert.match(privacyPolicy.sections[0].content.join(" "), /Brand Passport/);
-  assert.match(privacyPolicy.sections[1].content.join(" "), /Milo, Sleyz, Vea/);
-  assert.match(privacyPolicy.disclaimer, /has not been reviewed by a lawyer/i);
+  assert.match(privacyPolicy.sections[0].content.join(" "), /Payment information/);
+  assert.match(privacyPolicy.sections[0].content.join(" "), /Connected account data/);
+  assert.match(privacyPolicy.sections[1].content.join(" "), /personalized to your business/);
+});
+
+test("every landing footer section resolves to a public document route", () => {
+  const expectedRoutes = {
+    "Privacy Policy": "/privacy",
+    "Terms of Service": "/terms",
+    Legal: "/legal",
+    Contact: "/contact",
+    Socials: "/socials",
+  } as const;
+
+  for (const [label, route] of Object.entries(expectedRoutes)) {
+    assert.equal(getFooterLinkHref(label), route);
+    assert.equal(isPublicAppRoute(route), true);
+  }
+});
+
+test("provided terms, legal, contact, and social content is complete", () => {
+  assert.equal(publicDocuments.terms.lastUpdated, "13.07.2026");
+  assert.equal(publicDocuments.terms.sections.length, 12);
+  assert.match(publicDocuments.terms.sections[1].content.join(" "), /staged for your review/);
+  assert.match(publicDocuments.legal.sections[0].content.join(" "), /formal business registration/);
+  assert.match(publicDocuments.contact.sections[0].content.join(" "), /\+998 77 177 78 10/);
+  assert.deepEqual(
+    publicDocuments.socials.sections.map((section) => section.title),
+    ["Telegram", "Instagram", "X"],
+  );
+  assert.equal(publicDocuments.socials.sections[0].links?.[0].href, "https://t.me/converza_ai");
 });
 
 test("branch A ghost town handles zero volume without lead-loss copy", () => {

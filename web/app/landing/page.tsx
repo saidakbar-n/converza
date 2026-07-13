@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { OWNER_USER_STORAGE_KEY } from "@/lib/onboarding";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getFooterLinkHref } from "@/lib/legal/documents";
 
 const navItems = [
   { href: "#problem", label: "Problem" },
@@ -1714,7 +1715,7 @@ function Footer({ copy }: { copy: LandingCopy }) {
           {copy.footer.links.map((link) => (
             <a
               key={link}
-              href={link === "Privacy Policy" ? "/privacy" : "#"}
+              href={getFooterLinkHref(link)}
               className="hover:text-[#1C1B19]"
             >
               {link}

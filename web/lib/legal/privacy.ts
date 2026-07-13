@@ -8,7 +8,7 @@ export const privacyPolicy: {
   lastUpdated: string;
   introduction: string;
   sections: PrivacyPolicySection[];
-  disclaimer: string;
+  disclaimer?: string;
 } = {
   lastUpdated: "13.07.2026",
   introduction:
@@ -17,72 +17,58 @@ export const privacyPolicy: {
     {
       title: "Information We Collect",
       content: [
-        "Account information: name, email, business name, and contact details you provide when you register.",
-        "Business information (Brand Passport): the details you provide during onboarding - your industry, offer, target audience, pricing, tone of voice, and related business context - which our AI agents use to generate work on your behalf.",
-        "Usage data: messages you send to your agents, content you approve, reject, or edit, and general activity on the platform.",
-        "Communications data: if you connect a messaging channel (such as Telegram) to Sleyz, we process the messages exchanged with your customers in order to draft and send responses on your behalf.",
+        "Business information you provide: business name, industry, offer description, target audience, location, brand tone and colors, pricing, and related details you submit during onboarding or account setup.",
+        "Contact information: your name, email, phone number, and any messaging handles (e.g. Telegram) you provide to reach you.",
+        "Usage data: how you interact with the platform, including messages sent to and from your AI agents, approval/edit/reject actions you take on generated content, and general activity logs.",
+        "Payment information: when you subscribe to a paid plan, billing details are handled by our payment processor. We do not store full payment card numbers ourselves.",
+        "Connected account data: if you connect third-party accounts (e.g. Instagram, Telegram, TikTok), we access only the data needed to provide the connected functionality, as permitted by that platform's own authorization scope.",
       ],
     },
     {
       title: "How We Use Information",
       list: true,
       content: [
-        "To operate the platform and power your AI agents (Milo, Sleyz, Vea)",
-        "To generate, store, and present content and recommendations specific to your business",
-        "To process payments and manage your subscription",
-        "To provide customer support",
-        "To improve and maintain the reliability of the service",
+        "To operate the platform and generate content, replies, and analysis personalized to your business",
+        "To communicate with you about your account, invoices, and support",
+        "To improve the reliability and quality of the service",
+        "To comply with legal obligations",
       ],
     },
     {
-      title: "Third-Party Processors",
+      title: "Third-Party Services",
       content: [
-        "We use third-party services to deliver Converza, including infrastructure providers for hosting and data storage, AI model providers for generating content and responses, and video rendering services for content creation. When you connect a social or messaging channel, we also interact with that platform's own systems on your behalf. We do not sell your data to third parties for advertising purposes.",
+        "We use third-party infrastructure providers to operate Converza, including database and authentication hosting, AI model providers for generating content and replies, and video rendering services. These providers process data only as needed to deliver the platform's functionality and are not permitted to use your data for their own purposes.",
       ],
     },
     {
       title: "Data Retention",
       content: [
-        "We retain your business information and usage data for as long as your account is active, and for a reasonable period afterward as needed for legal, accounting, or legitimate business purposes. You may request deletion of your data at any time (see Section 7).",
-      ],
-    },
-    {
-      title: "Security",
-      content: [
-        "We apply reasonable technical and organizational safeguards to protect your information, including access controls and encrypted credential storage. No system is completely secure, and we cannot guarantee absolute security.",
-      ],
-    },
-    {
-      title: "International Data Transfers",
-      content: [
-        "Converza is based in Tashkent, Uzbekistan. If you are located outside Uzbekistan, your information may be processed in Uzbekistan or in other countries where our service providers operate.",
+        "We retain your business and usage data for as long as your account is active, and for a reasonable period afterward as needed for legal, billing, or support purposes. You may request deletion at any time (see Your Rights below).",
       ],
     },
     {
       title: "Your Rights",
       content: [
-        "You may request access to, correction of, or deletion of your personal and business data by contacting us at the details below.",
+        "You may request access to, correction of, or deletion of your personal and business data by contacting us using the information on our Contact page. We will respond within a reasonable timeframe.",
       ],
     },
     {
-      title: "Cookies",
+      title: "International Data",
       content: [
-        "We use basic cookies and similar technologies to keep you signed in and to understand general usage of the platform.",
+        "Converza is operated from Uzbekistan and may use infrastructure providers located in other countries. By using Converza, you consent to your data being processed in these locations.",
       ],
     },
     {
       title: "Changes to This Policy",
       content: [
-        "We may update this policy from time to time. We will post the updated version on this page with a revised date.",
+        "We may update this policy from time to time. Material changes will be communicated through the platform or by direct contact.",
       ],
     },
     {
       title: "Contact",
       content: [
-        "Questions about this policy can be sent to the contact details listed on our Contact page.",
+        "Questions about this policy can be directed to the contact details on our Contact page.",
       ],
     },
   ],
-  disclaimer:
-    "This document is a starting template appropriate for an early-stage product. It has not been reviewed by a lawyer. Before processing real customer payments at scale or expanding into new jurisdictions, have this reviewed by qualified legal counsel familiar with data protection requirements in the regions you operate in.",
 };

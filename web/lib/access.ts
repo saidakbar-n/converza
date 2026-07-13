@@ -6,10 +6,11 @@ interface GatePassport {
 }
 
 export function isPublicAppRoute(pathname: string | null) {
+  const publicDocumentRoutes = ["/privacy", "/terms", "/legal", "/contact", "/socials"];
   return Boolean(
     pathname?.startsWith("/landing") ||
       pathname?.startsWith("/onboarding") ||
-      pathname === "/privacy",
+      (pathname ? publicDocumentRoutes.includes(pathname) : false),
   );
 }
 
