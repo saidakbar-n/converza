@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { BACKEND_UNAVAILABLE_DETAIL } from "@/lib/api/errors";
 
 const BACKEND_URL =
   process.env.BACKEND_URL ??
@@ -35,18 +36,26 @@ async function proxy(request: NextRequest, context: RouteContext) {
   }
   headers.set("authorization", `Bearer ${BACKEND_API_KEY}`);
 
-  const upstream = await fetch(upstreamUrl, {
-    method: request.method,
-    headers,
-    body: request.method === "GET" || request.method === "HEAD" ? undefined : await request.text(),
-    cache: "no-store",
-  });
+  try {
+    const upstream = await fetch(upstreamUrl, {
+      method: request.method,
+      headers,
+      body: request.method === "GET" || request.method === "HEAD" ? undefined : await request.text(),
+      cache: "no-store",
+    });
 
-  return new Response(upstream.body, {
-    status: upstream.status,
-    statusText: upstream.statusText,
-    headers: upstream.headers,
-  });
+    return new Response(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: upstream.headers,
+    });
+  } catch (error) {
+    console.error("[backend-proxy] FastAPI request failed", {
+      origin: upstreamUrl.origin,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return Response.json({ detail: BACKEND_UNAVAILABLE_DETAIL }, { status: 503 });
+  }
 }
 
 export async function GET(request: NextRequest, context: RouteContext) {

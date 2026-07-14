@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { OWNER_USER_STORAGE_KEY } from "@/lib/onboarding";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getFooterLinkHref } from "@/lib/legal/documents";
 
 const navItems = [
   { href: "#problem", label: "Problem" },
@@ -69,7 +70,7 @@ const solutionSteps = [
   },
   {
     step: "02",
-    title: "The 19-agent team executes.",
+    title: "The AI agent team executes.",
     body: "Dedicated AI specialists autonomously research, write, and create your video assets.",
     icon: Network,
   },
@@ -159,7 +160,7 @@ const articles = [
     read: "4 min",
   },
   {
-    title: "The 19-agent revenue team: what each agent does",
+    title: "The current AI revenue team: what each agent does",
     category: "Product",
     read: "8 min",
   },
@@ -187,7 +188,7 @@ const translations = {
     hero: {
       eyebrow: "Autonomous Revenue Team for serious operators",
       headline:
-        "Fire your $5,000 marketing agency. Hire a 19-agent AI team that never sleeps.",
+        "Fire your $5,000 marketing agency. Hire a team of AI agents that never sleeps.",
       subheadline:
         "Converza is your entire Go-To-Market team on autopilot. Just give us your product links, and we will generate high-converting video ads and close leads in your DMs 24/7.",
       cta: "Book Your Pilot",
@@ -241,7 +242,7 @@ const translations = {
         },
         {
           step: "02",
-          title: "The 19-agent team executes.",
+          title: "The AI agent team executes.",
           body: "Dedicated AI specialists autonomously research, write, and create your video assets.",
         },
         {
@@ -258,7 +259,7 @@ const translations = {
     advantage: {
       eyebrow: "Why us?",
       title: "We Didn't Build a Chatbot. We Built a Digital Workforce.",
-      body: "Basic AI wrappers guess and hallucinate. Converza splits your marketing into 19 distinct roles with strict, fail-proof rules. No guessing. 100% precision.",
+      body: "Basic AI wrappers guess and hallucinate. Converza splits the work across focused agents for strategy, sales replies, and video creation, with human approval before anything goes live.",
       roles: [
         ["Strategy", "Offer angles, market map, campaign brief"],
         ["Copywriting", "Hooks, scripts, landing copy, DM replies"],
@@ -369,7 +370,7 @@ const translations = {
           read: "4 min",
         },
         {
-          title: "The 19-agent revenue team: what each agent does",
+          title: "The current AI revenue team: what each agent does",
           category: "Product",
           read: "8 min",
         },
@@ -418,7 +419,7 @@ const translations = {
     hero: {
       eyebrow: "Автономная revenue-команда для серьезных операторов",
       headline:
-        "Увольте агентство за $5,000. Наймите AI-команду из 19 агентов, которая не спит.",
+        "Увольте агентство за $5,000. Наймите AI-команду, которая не спит.",
       subheadline:
         "Converza — ваша Go-To-Market команда на автопилоте. Дайте ссылки на продукты, а мы создадим видео-рекламу и будем закрывать лидов в DM 24/7.",
       cta: "Забронировать пилот",
@@ -472,7 +473,7 @@ const translations = {
         },
         {
           step: "02",
-          title: "Работает команда из 19 агентов.",
+          title: "AI-команда работает.",
           body: "Специализированные AI-агенты автономно исследуют, пишут и создают видео-ассеты.",
         },
         {
@@ -600,7 +601,7 @@ const translations = {
           read: "4 мин",
         },
         {
-          title: "Revenue-команда из 19 агентов: что делает каждый",
+          title: "Текущая AI revenue-команда: что делает каждый",
           category: "Продукт",
           read: "8 мин",
         },
@@ -649,7 +650,7 @@ const translations = {
     hero: {
       eyebrow: "Jiddiy operatorlar uchun avtonom revenue-jamoa",
       headline:
-        "$5,000lik marketing agentlikni almashtiring. Uxlamaydigan 19 agentli AI jamoani ishga oling.",
+        "$5,000lik marketing agentlikni almashtiring. Uxlamaydigan AI agentlar jamoasini ishga oling.",
       subheadline:
         "Converza — Go-To-Market jamoangiz avtopilotda. Mahsulot linklarini bering, biz video reklamalar yaratamiz va DMlarda leadlarni 24/7 yopamiz.",
       cta: "Pilotni band qilish",
@@ -703,7 +704,7 @@ const translations = {
         },
         {
           step: "02",
-          title: "19 agentli jamoa bajaradi.",
+          title: "AI agentlar jamoasi bajaradi.",
           body: "Maxsus AI mutaxassislar avtonom ravishda research qiladi, yozadi va video assetlar yaratadi.",
         },
         {
@@ -720,7 +721,7 @@ const translations = {
     advantage: {
       eyebrow: "Nega biz?",
       title: "Biz chatbot qurmadik. Biz raqamli jamoa qurdik.",
-      body: "Oddiy AI wrapperlar taxmin qiladi va adashadi. Converza marketingni 19 aniq rolga ajratadi va qat'iy qoidalar bilan ishlaydi. Taxmin yo'q. Aniqlik yuqori.",
+      body: "Oddiy AI wrapperlar taxmin qiladi va adashadi. Converza ishni strategiya, sales javoblari va video yaratish uchun fokuslangan agentlarga ajratadi, natija ishlatilishidan oldin odam approval beradi.",
       roles: [
         ["Strategiya", "Offer burchaklari, bozor xaritasi, kampaniya briefi"],
         ["Kopirayting", "Hooklar, skriptlar, landing copy, DM javoblar"],
@@ -831,7 +832,7 @@ const translations = {
           read: "4 daq",
         },
         {
-          title: "19 agentli revenue jamoa: har biri nima qiladi",
+          title: "Hozirgi AI revenue jamoasi: har biri nima qiladi",
           category: "Product",
           read: "8 daq",
         },
@@ -1712,7 +1713,11 @@ function Footer({ copy }: { copy: LandingCopy }) {
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-3 text-[13px] font-medium text-stone-500">
           {copy.footer.links.map((link) => (
-            <a key={link} href="#" className="hover:text-[#1C1B19]">
+            <a
+              key={link}
+              href={getFooterLinkHref(link)}
+              className="hover:text-[#1C1B19]"
+            >
               {link}
             </a>
           ))}
