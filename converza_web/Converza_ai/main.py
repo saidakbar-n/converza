@@ -73,6 +73,7 @@ from services.switchboard import (
     stream_agent_completion,
     assemble_agent_context,
 )
+from services.switchboard_repo import SwitchboardRepository
 from services.onboarding_vault import (
     get_passport_by_owner,
     mark_vault_complete,
