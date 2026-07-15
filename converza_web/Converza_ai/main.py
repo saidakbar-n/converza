@@ -13,7 +13,7 @@ from converza_agent.client import HermesError, get_hermes_client
 from converza_agent.config import hermes_configured
 from converza_agent.groq_client import groq_configured
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, Response, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Header, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -73,7 +73,11 @@ from services.switchboard import (
     stream_agent_completion,
     assemble_agent_context,
 )
-from services.switchboard_repo import SwitchboardRepository
+from services.onboarding_vault import (
+    get_passport_by_owner,
+    mark_vault_complete,
+    save_vault_passport,
+)
 from services.telegram_auth import verify_telegram_auth
 from services.workspace_data import (
     approve_media_job,
@@ -153,6 +157,17 @@ class MemoryCreateRequest(BaseModel):
 
 class ModelSettingsRequest(BaseModel):
     settings: dict[str, str]
+
+
+class VaultOnboardingSaveRequest(BaseModel):
+    owner_user_id: str
+    org_id: str | None = None
+    answers: dict = {}
+
+
+class VaultOnboardingOwnerRequest(BaseModel):
+    owner_user_id: str
+    org_id: str | None = None
 
 
 class TelegramAuthData(BaseModel):
@@ -702,6 +717,101 @@ async def connection_status(user: Annotated[dict, Depends(get_current_user)]):
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+def _vault_backend_key() -> str:
+    return (os.getenv("BACKEND_API_KEY") or os.getenv("HERMES_API_KEY") or "").strip()
+
+
+async def require_vault_user(
+    authorization: Annotated[str | None, Header()] = None,
+    x_supabase_access_token: Annotated[str | None, Header()] = None,
+) -> str:
+    """Brand Vault auth: BACKEND_API_KEY bearer + Supabase access token header."""
+    expected = _vault_backend_key()
+    if not expected:
+        raise HTTPException(
+            status_code=500,
+            detail="BACKEND_API_KEY (or HERMES_API_KEY) must be set for Brand Vault.",
+        )
+    if not authorization or authorization != f"Bearer {expected}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    token = (x_supabase_access_token or "").strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing Supabase session")
+    try:
+        result = get_supabase().auth.get_user(token)
+        user = getattr(result, "user", None)
+        user_id = getattr(user, "id", None)
+        if not user_id:
+            raise ValueError("no user")
+        return str(user_id)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Supabase session")
+
+
+@app.get("/api/onboarding/state/{owner_user_id}")
+async def vault_onboarding_state(
+    owner_user_id: str,
+    vault_user_id: Annotated[str, Depends(require_vault_user)],
+):
+    if owner_user_id != vault_user_id:
+        raise HTTPException(status_code=403, detail="Cannot access onboarding for another user")
+    return {"passport": get_passport_by_owner(owner_user_id)}
+
+
+@app.post("/api/onboarding/passport")
+async def vault_onboarding_save(
+    body: VaultOnboardingSaveRequest,
+    vault_user_id: Annotated[str, Depends(require_vault_user)],
+):
+    if body.owner_user_id != vault_user_id:
+        raise HTTPException(status_code=403, detail="Cannot access onboarding for another user")
+    org_id = (body.org_id or "").strip() or str(vault_user_id)
+    try:
+        passport = save_vault_passport(
+            owner_user_id=body.owner_user_id,
+            org_id=org_id,
+            answers=body.answers or {},
+        )
+        return {"passport": passport}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=format_supabase_error(exc))
+
+
+@app.post("/api/onboarding/complete")
+async def vault_onboarding_complete(
+    body: VaultOnboardingOwnerRequest,
+    vault_user_id: Annotated[str, Depends(require_vault_user)],
+):
+    if body.owner_user_id != vault_user_id:
+        raise HTTPException(status_code=403, detail="Cannot access onboarding for another user")
+    try:
+        passport = mark_vault_complete(body.owner_user_id, body.org_id)
+        return {"passport": passport}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Onboarding passport not found")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=format_supabase_error(exc))
+
+
+@app.post("/api/onboarding/stub-payment")
+async def vault_stub_payment(
+    body: VaultOnboardingOwnerRequest,
+    vault_user_id: Annotated[str, Depends(require_vault_user)],
+):
+    if body.owner_user_id != vault_user_id:
+        raise HTTPException(status_code=403, detail="Cannot access onboarding for another user")
+    try:
+        passport = mark_vault_complete(body.owner_user_id, body.org_id)
+        # Soft-mark paywall if column exists — mark_vault_complete already tolerant.
+        return {"passport": passport}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Onboarding passport not found")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=format_supabase_error(exc))
 
 
 @app.post("/api/dm-closer/onboard")

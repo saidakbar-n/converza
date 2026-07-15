@@ -30,6 +30,12 @@ from converza_agent.language_detect import (
     language_instruction,
 )
 from converza_agent.runtime import run_dm_closer_json
+from converza_agent.tone_adapt import (
+    blend_tone,
+    compact_brand_context,
+    extract_client_style,
+    style_as_dict,
+)
 
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
@@ -61,14 +67,6 @@ async def _resolve_business_connection_id(
     return lookup_business_connection_id(org_id)
 
 
-def _trim_brand_context(brand: dict) -> dict:
-    ctx = dict(brand or {})
-    notes = ctx.get("raw_notes")
-    if isinstance(notes, str) and len(notes) > 1500:
-        ctx["raw_notes"] = notes[:1500] + "…"
-    return ctx
-
-
 async def generate_reply(
     chat_id: int,
     prospect_id: str,
@@ -82,13 +80,27 @@ async def generate_reply(
     click_token = get_payment_provider_token(org)
     conn_id = await _resolve_business_connection_id(org_id, business_connection_id)
 
-    history = await get_conversation_history(org_id, prospect_id, limit=8)
+    history = await get_conversation_history(org_id, prospect_id, limit=6)
     payments_enabled = is_configured_provider_token(click_token)
 
     reply_language = detect_reply_language(inbound_text)
     uz_script = detect_uzbek_script(inbound_text) if reply_language == "uz" else "latin"
     lang_instruction = language_instruction(reply_language, uz_script=uz_script)
-    communication_tone = brand.get("tone") or brand.get("brand_voice") or ""
+    brand_tone = brand.get("tone") or brand.get("brand_voice") or ""
+    client_style = extract_client_style(
+        inbound_text,
+        history,
+        lang_hint=reply_language,
+    )
+    adapted_tone = blend_tone(brand_tone, client_style)
+    slim_history = [
+        {
+            "role": row.get("role") or row.get("direction") or "user",
+            "content": str(row.get("content") or "")[:280],
+        }
+        for row in (history or [])
+        if str(row.get("content") or "").strip()
+    ][-6:]
     payload = {
         "org_id": org_id,
         "prospect_id": prospect_id,
@@ -98,18 +110,22 @@ async def generate_reply(
         "reply_language_label": LANGUAGE_LABELS[reply_language],
         "reply_language_instruction": lang_instruction,
         "uz_script": uz_script if reply_language == "uz" else None,
-        "communication_tone": communication_tone,
-        "brand_context": _trim_brand_context(brand),
-        "message_history": history,
+        "communication_tone": brand_tone,
+        "adapted_tone": adapted_tone,
+        "client_style": style_as_dict(client_style),
+        "brand_context": compact_brand_context(brand),
+        "message_history": slim_history,
         "payments_enabled": payments_enabled,
     }
     logger.info(
-        "DM closer reply_language=%s uz_script=%s org_id=%s prospect_id=%s tone=%r inbound=%r",
+        "DM closer reply_language=%s uz_script=%s org_id=%s prospect_id=%s "
+        "tone=%r formality=%s inbound=%r",
         reply_language,
         uz_script,
         org_id,
         prospect_id,
-        communication_tone,
+        brand_tone,
+        client_style.formality,
         inbound_text[:80],
     )
 

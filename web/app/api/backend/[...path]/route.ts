@@ -1,10 +1,12 @@
 import { NextRequest } from "next/server";
 import { BACKEND_UNAVAILABLE_DETAIL } from "@/lib/api/errors";
 
+// Brand Vault onboarding APIs live on FastAPI Co-Pilot (web :8001 in prod / local root main.py).
+// Bot service (:8000) does not expose /api/onboarding/* — defaulting here to 8001.
 const BACKEND_URL =
   process.env.BACKEND_URL ??
   process.env.NEXT_PUBLIC_BACKEND_URL ??
-  "http://127.0.0.1:8000";
+  "http://127.0.0.1:8001";
 const BACKEND_API_KEY = process.env.BACKEND_API_KEY;
 
 type RouteContext = {

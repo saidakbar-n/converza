@@ -227,6 +227,16 @@ def _onboarding_payload(owner_user_id: str, org_id: str, answers: dict[str, Any]
     tones = answers.get("brand_tone") or []
     colors = answers.get("brand_colors") or []
     channels = answers.get("channels_requested") or []
+    tone_text = ", ".join(tones) if isinstance(tones, list) else (tones or "")
+    notes_bits = []
+    if answers.get("primary_pain_point"):
+        notes_bits.append(f"Pain: {answers['primary_pain_point']}")
+    if answers.get("primary_goal"):
+        notes_bits.append(f"Goal: {answers['primary_goal']}")
+    if answers.get("owner_contact"):
+        notes_bits.append(f"Owner contact: {answers['owner_contact']}")
+    if isinstance(channels, list) and channels:
+        notes_bits.append(f"Channels: {', '.join(str(c) for c in channels)}")
     return {
         "owner_user_id": owner_user_id,
         "org_id": org_id,
@@ -236,8 +246,9 @@ def _onboarding_payload(owner_user_id: str, org_id: str, answers: dict[str, Any]
         "core_offer": answers.get("core_offer"),
         "target_audience": answers.get("ideal_customer"),
         "target_location": answers.get("customer_location"),
-        "tone": ", ".join(tones) if isinstance(tones, list) else tones,
+        "tone": tone_text or None,
         "hex_colors": colors if isinstance(colors, list) else [],
+        "raw_notes": "\n".join(notes_bits),
         "current_marketing_handler": answers.get("current_marketing_handler"),
         "current_marketing_spend": _number_or_none(answers.get("current_marketing_spend")),
         "current_reply_handler": answers.get("current_reply_handler"),
@@ -252,40 +263,146 @@ def _onboarding_payload(owner_user_id: str, org_id: str, answers: dict[str, Any]
     }
 
 
-def _get_onboarding_passport(owner_user_id: str) -> dict[str, Any] | None:
-    result = (
-        get_supabase()
-        .table("brand_passports")
-        .select("*")
-        .eq("owner_user_id", owner_user_id)
-        .order("updated_at", desc=True)
-        .limit(1)
-        .execute()
+def _sync_organization(org_id: str) -> None:
+    """Create org row so brand_passports.org_id FK never fails on first Brand Vault save."""
+    try:
+        get_supabase().table("organizations").upsert({"id": org_id}).execute()
+    except Exception:
+        # Best-effort — some deployments allow inserts without org sync.
+        pass
+
+
+def _core_passport_fallback(payload: dict[str, Any]) -> dict[str, Any]:
+    """Minimal Hermes-ready passport when extended onboarding columns are missing."""
+    keep = {
+        "org_id",
+        "brand_name",
+        "industry",
+        "core_offer",
+        "target_audience",
+        "target_location",
+        "tone",
+        "raw_notes",
+        "updated_at",
+        "hex_colors",
+    }
+    slim = {k: v for k, v in payload.items() if k in keep and v is not None}
+    # Preserve Brand Vault extras inside notes so closer/Hermes can still read them.
+    import json as _json
+
+    answers = payload.get("onboarding_answers") or {}
+    meta = {
+        "onboarding_answers": answers,
+        "owner_user_id": payload.get("owner_user_id"),
+        "paywall_status": payload.get("paywall_status") or "pending",
+    }
+    notes = (slim.get("raw_notes") or "").strip()
+    block = (
+        "---converza_onboarding---\n"
+        f"{_json.dumps(meta, ensure_ascii=False)}\n"
+        "---end_onboarding---"
     )
-    return result.data[0] if result.data else None
+    slim["raw_notes"] = f"{block}\n{notes}".strip()
+    slim["brand_name"] = slim.get("brand_name") or "Untitled brand"
+    return slim
+
+
+def _get_onboarding_passport(owner_user_id: str) -> dict[str, Any] | None:
+    try:
+        result = (
+            get_supabase()
+            .table("brand_passports")
+            .select("*")
+            .eq("owner_user_id", owner_user_id)
+            .order("updated_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception as e:
+        if _is_missing_onboarding_migration(e):
+            return None
+        raise
 
 
 def _save_onboarding_passport(owner_user_id: str, org_id: str, answers: dict[str, Any]) -> dict[str, Any]:
     sb = get_supabase()
+    _sync_organization(org_id)
     existing = _get_onboarding_passport(owner_user_id)
+    if not existing:
+        # Also allow resume by org if owner_user_id column is new / unset.
+        by_org = _get_passport_by_org(org_id)
+        if by_org and (
+            not by_org.get("owner_user_id")
+            or str(by_org.get("owner_user_id")) == owner_user_id
+        ):
+            existing = (
+                sb.table("brand_passports")
+                .select("*")
+                .eq("id", by_org["id"])
+                .limit(1)
+                .execute()
+                .data
+                or [None]
+            )[0]
+
     payload = _onboarding_payload(owner_user_id, org_id, answers)
 
     def write(next_payload: dict[str, Any]):
         if existing:
-            next_payload["paywall_status"] = existing.get("paywall_status") or "pending"
+            if "paywall_status" in next_payload:
+                next_payload["paywall_status"] = existing.get("paywall_status") or "pending"
             return sb.table("brand_passports").update(next_payload).eq("id", existing["id"]).execute()
         return sb.table("brand_passports").insert(next_payload).execute()
 
-    try:
-        result = write(payload)
-    except Exception as e:
-        missing_column = _missing_schema_column(e)
-        if missing_column == "hex_colors":
-            fallback_payload = {key: value for key, value in payload.items() if key != missing_column}
-            result = write(fallback_payload)
-        else:
+    working = dict(payload)
+    last_error: Exception | None = None
+    for _ in range(24):
+        try:
+            result = write(working)
+            return result.data[0]
+        except Exception as e:
+            last_error = e
+            missing = _missing_schema_column(e)
+            if missing and missing in working:
+                working.pop(missing)
+                continue
+            # FK / org row race — retry after sync once more.
+            if "organizations" in str(e).lower() or "23503" in str(e):
+                _sync_organization(org_id)
+                continue
+            # Extended Brand Vault columns missing entirely → Hermes-safe core only.
+            if "owner_user_id" in str(e) or "42703" in str(e) or "onboarding_" in str(e):
+                working = _core_passport_fallback(payload)
+                existing_core = None
+                try:
+                    rows = (
+                        sb.table("brand_passports")
+                        .select("*")
+                        .eq("org_id", org_id)
+                        .limit(1)
+                        .execute()
+                        .data
+                        or []
+                    )
+                    existing_core = rows[0] if rows else None
+                except Exception:
+                    existing_core = None
+                if existing_core:
+                    result = (
+                        sb.table("brand_passports")
+                        .update(working)
+                        .eq("id", existing_core["id"])
+                        .execute()
+                    )
+                    return result.data[0]
+                result = sb.table("brand_passports").insert(working).execute()
+                return result.data[0]
             raise
-    return result.data[0]
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("Failed to save onboarding passport")
 
 
 def _update_onboarding_status(owner_user_id: str, updates: dict[str, Any]) -> dict[str, Any]:
@@ -293,14 +410,39 @@ def _update_onboarding_status(owner_user_id: str, updates: dict[str, Any]) -> di
     if not existing:
         raise KeyError(owner_user_id)
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
-    result = (
-        get_supabase()
-        .table("brand_passports")
-        .update(updates)
-        .eq("id", existing["id"])
-        .execute()
-    )
-    return result.data[0]
+    working = dict(updates)
+    last_error: Exception | None = None
+    for _ in range(8):
+        try:
+            result = (
+                get_supabase()
+                .table("brand_passports")
+                .update(working)
+                .eq("id", existing["id"])
+                .execute()
+            )
+            return result.data[0]
+        except Exception as e:
+            last_error = e
+            missing = _missing_schema_column(e)
+            if missing and missing in working:
+                working.pop(missing)
+                continue
+            # If completed_at column is missing, fold into raw_notes.
+            if "onboarding_completed_at" in str(e) or "42703" in str(e):
+                notes = (existing.get("raw_notes") or "") + "\n[onboarding_completed]"
+                result = (
+                    get_supabase()
+                    .table("brand_passports")
+                    .update({"raw_notes": notes.strip(), "updated_at": updates["updated_at"]})
+                    .eq("id", existing["id"])
+                    .execute()
+                )
+                return result.data[0]
+            raise
+    if last_error:
+        raise last_error
+    raise RuntimeError("Failed to update onboarding status")
 
 
 # ---------------------------------------------------------------------------

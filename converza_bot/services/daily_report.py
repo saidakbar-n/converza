@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
+import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from db.supabase_client import sb
 from services.brand_passport import fetch_passport_by_org
+
+logger = logging.getLogger(__name__)
 
 TZ = ZoneInfo("Asia/Tashkent")
 
@@ -16,6 +20,14 @@ CONDITION_LABELS = {
     "purchasing": "Xarid jarayonida (Purchasing)",
     "closed": "Yopilgan (Closed)",
 }
+
+# Hermes/Groq failure strings must never appear as owner tips.
+_INVALID_TIP_RE = re.compile(
+    r"(413|payload too large|cannot compress|traceback|hermes returned|"
+    r"request entity too large|context.?length|token.?limit|"
+    r"rate.?limit|timed? ?out|exception|error:)",
+    re.I,
+)
 
 
 def _now_local() -> datetime:
@@ -149,44 +161,130 @@ def format_daily_report(stats: dict) -> str:
     return f"{header}\n\n{intro}"
 
 
+def build_deterministic_tip(stats: dict) -> str:
+    """Short owner tip from stats only — no LLM, no session, no MCP."""
+    conditions = stats.get("prospect_conditions") or {}
+    cold = int(conditions.get("cold") or 0)
+    warm = int(conditions.get("warm") or 0)
+    purchasing = int(conditions.get("purchasing") or 0)
+    closed = int(conditions.get("closed") or 0)
+    today = int(stats.get("today_total") or 0)
+    week = int(stats.get("week_total") or 0)
+    total = int(stats.get("prospect_total") or 0)
+
+    if today == 0 and week == 0 and total == 0:
+        return (
+            "Telegram Business ulanishini tekshiring va yangi suhbatlarni ochish "
+            "uchun bitta aniq offer postini joylang."
+        )
+    if today == 0 and week == 0:
+        return (
+            "Bu hafta faollik past. Iliq yoki sovuq mijozlarga qisqa follow-up "
+            "yozishdan boshlang."
+        )
+    if purchasing > 0:
+        return (
+            f"{purchasing} ta mijoz xarid jarayonida. Bugun ularga to'lov tugmasi "
+            "yoki aniq next step yuboring."
+        )
+    if warm > 0:
+        return (
+            f"{warm} ta iliq mijoz bor. Har biriga 1 ta aniq savol bilan follow-up "
+            "qiling — isitishni saqlab qoling."
+        )
+    if closed > 0 and today == 0:
+        return (
+            f"{closed} ta yopilgan mijoz bor. Bugun yangi lead oqimini ochish uchun "
+            "bitta post yoki story joylang."
+        )
+    if cold > 0 and today == 0:
+        return (
+            f"{cold} ta sovuq mijoz kutmoqda. Ularga yumshoq ochilish xabari "
+            "yuborib suhbatni qayta boshlang."
+        )
+    if today > 0:
+        return (
+            f"Bugun {today} ta xabar almashildi. Iliq va xarid bosqichidagi "
+            "mijozlarni birinchi navbatda yoping."
+        )
+    return (
+        "Statistika past. Brand passport va Click to'lovni tekshirib, bitta "
+        "aniq call-to-action bilan yangi suhbat oching."
+    )
+
+
+def is_valid_tip(tip: str) -> bool:
+    text = (tip or "").strip()
+    if not text or len(text) > 500:
+        return False
+    if _INVALID_TIP_RE.search(text):
+        return False
+    return True
+
+
+def append_tip(base: str, tip: str) -> str:
+    cleaned = (tip or "").strip()
+    if not is_valid_tip(cleaned):
+        return base
+    return f"{base}\n\n💡 Tavsiya: {cleaned}"
+
+
+async def _optional_llm_tip(stats: dict) -> str | None:
+    """
+    Tiny Groq completion only. Never Hermes sessions/MCP — those blow past
+    context limits and surface 413 errors as tip text.
+    """
+    try:
+        from converza_agent.groq_client import groq_complete_text, groq_configured
+
+        if not groq_configured():
+            return None
+
+        compact = {
+            "brand": stats.get("brand_name"),
+            "date": stats.get("report_date"),
+            "today_total": stats.get("today_total"),
+            "week_total": stats.get("week_total"),
+            "cold": (stats.get("prospect_conditions") or {}).get("cold", 0),
+            "warm": (stats.get("prospect_conditions") or {}).get("warm", 0),
+            "purchasing": (stats.get("prospect_conditions") or {}).get("purchasing", 0),
+            "closed": (stats.get("prospect_conditions") or {}).get("closed", 0),
+        }
+        tip = await groq_complete_text(
+            (
+                "Siz Converza auditorisiz. Faqat 1-2 qisqa O'zbekcha tavsiya yozing. "
+                "Raqamlarni o'zgartirmang. Xato/xabar kodlarini qaytarmang. "
+                "Markdown yoki JSON yo'q."
+            ),
+            (
+                "Quyidagi kundalik statistikaga asoslangan tavsiya yozing:\n"
+                f"{compact}"
+            ),
+            max_tokens=120,
+            temperature=0.3,
+        )
+        tip = (tip or "").strip()
+        if tip.lower().startswith("tavsiya:"):
+            tip = tip.split(":", 1)[1].strip()
+        return tip if is_valid_tip(tip) else None
+    except Exception as exc:
+        logger.info("Daily report LLM tip skipped: %s", exc)
+        return None
+
+
 async def build_daily_report(org_id: str, *, use_hermes: bool = False) -> str:
     """
-    Build daily report. Default: deterministic template from Supabase.
-    Optional Hermes pass can polish narrative (falls back on error).
+    Build daily report. Body is always deterministic.
+    Tip: deterministic by default; optional Groq polish when use_hermes=True
+    (name kept for callers — Hermes session path removed to avoid 413 payloads).
     """
     stats = fetch_daily_report_data(org_id)
     base = format_daily_report(stats)
-    if not use_hermes:
-        return base
+    tip = build_deterministic_tip(stats)
 
-    try:
-        from converza_agent.config import hermes_configured
-        from converza_agent.runtime import run_agent_text
+    if use_hermes:
+        polished = await _optional_llm_tip(stats)
+        if polished:
+            tip = polished
 
-        if not hermes_configured():
-            return base
-
-        import json
-
-        narrative = await run_agent_text(
-            "auditor",
-            [
-                {
-                    "role": "user",
-                    "content": (
-                        "Quyidagi statistikadan foydalanib, qisqa tavsiya qo'shing "
-                        "(2-3 gap, O'zbek tilida). Asosiy raqamlarni o'zgartirmang.\n\n"
-                        + json.dumps(stats, ensure_ascii=False)
-                    ),
-                }
-            ],
-            session_key=f"converza:audit:{org_id}",
-            max_tokens=350,
-            temperature=0.4,
-        )
-        tip = (narrative or "").strip()
-        if tip:
-            return f"{base}\n\n💡 Tavsiya: {tip}"
-    except Exception:
-        pass
-    return base
+    return append_tip(base, tip)

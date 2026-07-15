@@ -27,6 +27,9 @@ DB_PASSPORT_FIELDS = (
     "faq",
     "objections",
     "raw_notes",
+    "hex_colors",
+    "competitors",
+    "avoid_topics",
 )
 
 
